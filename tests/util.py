@@ -8,6 +8,7 @@
 ######################################################
 
 import os.path
+from subprocess import check_call as run
 
 try:
   import youtube_dl
@@ -40,3 +41,10 @@ def download_video(num = 1):
       elif num == 2:
         ydl.download(["https://www.youtube.com/watch?v=cPAbx5kgCJo"])
   return VID_PATH
+
+def have_gpu():
+  try:
+    run(['nvidia-smi'])
+    return True
+  except OSError:
+    return False
