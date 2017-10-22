@@ -1,3 +1,4 @@
 [submodule "scanner"]
 	path = scanner
 	url = https://github.com/qinglan233/scanner.git
+	branch = sampling-spacing
