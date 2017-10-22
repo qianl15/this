@@ -79,7 +79,7 @@ with Database() as db:
   start = now()
   output_tables = db.run(bulk_job, force=True)
   print('Totaltime to decode + compute histograms: {:.6f}s, including profiling time'.format(now() - start))
-
+  
   num = 1
   for output_table in output_tables:
     # The profiler contains information about how long different parts of your
