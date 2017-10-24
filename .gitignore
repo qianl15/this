@@ -36,3 +36,4 @@
 *.dat
 *.trace
 *.jpg
+*results/
