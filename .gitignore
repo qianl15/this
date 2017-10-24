@@ -37,3 +37,4 @@
 *.trace
 *.jpg
 *results/
+*.DS_Store
