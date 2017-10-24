@@ -29,8 +29,9 @@ def download_video(num = 1):
     exit()
 
   if not os.path.isfile(VID_PATH):
+    # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
     ydl_opts = {
-      'format': '134',
+      'format': '135',
       'outtmpl': u'/tmp/example.%(ext)s'
     }
     if num == 2:
