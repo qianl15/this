@@ -204,9 +204,10 @@ int main(int argc, char* argv[])
         }
 
         boost::asio::io_service io_service;
-        client c(io_service, argv[1], argv[2]);
+        client c(io_service, "www.deelay.me", "/1000/hmpg.net");
+        client c2(io_service, argv[1], argv[2]);
         io_service.run();
-        std:cout << "should print first\n";
+        std::cout << "should print first\n";
     }
     catch (std::exception& e)
     {
