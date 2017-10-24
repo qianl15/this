@@ -4,7 +4,8 @@
 # Author: James Hong
 # Created Date: 2017-10-24
 # Description: script for the server side
-######################################################import socket
+######################################################
+import socket
 import sys
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
