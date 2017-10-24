@@ -1,3 +1,10 @@
+######################################################
+# -*- coding: utf-8 -*-
+# File Name: encode_benchmark.py
+# Author: James Hong
+# Created Date: 2017-10-24
+# Description: JPEG encoding benchmark 
+######################################################
 import numpy as np
 from PIL import Image
 import StringIO

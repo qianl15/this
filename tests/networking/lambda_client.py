@@ -1,3 +1,10 @@
+######################################################
+# -*- coding: utf-8 -*-
+# File Name: lambda_client.py
+# Author: James Hong
+# Created Date: 2017-10-24
+# Description: lambda functiion
+######################################################
 import socket
 import sys
 import time

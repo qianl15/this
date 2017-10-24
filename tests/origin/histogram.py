@@ -77,7 +77,7 @@ with Database() as db:
   # This executes the job and produces the output table. You'll see a progress
   # bar while Scanner is computing the outputs.
   start = now()
-  output_tables = db.run(bulk_job, force=True)
+  output_tables = db.run(bulk_job, force=True, profiling=False)
   print('Totaltime to decode + compute histograms: {:.6f}s, including profiling time'.format(now() - start))
   
   num = 1
@@ -89,7 +89,7 @@ with Database() as db:
     # Since scanner will run bulk jobs in one pipeline, the trace file for
     # jobs are combined into one giant file for the whole bulk jobs
     if num == 1:
-     output_table.profiler().write_trace('test_hist.trace'.format(num))
+    output_table.profiler().write_trace('test_hist.trace'.format(num))
     # Each row corresponds to a different part of the system, e.g. the thread
     # loading bytes from disk or the thread running your kernels. If you have
     # multiple pipelines or multiple nodes, you will see many of these evaluate

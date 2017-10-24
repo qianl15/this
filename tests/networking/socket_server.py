@@ -1,4 +1,10 @@
-import socket
+######################################################
+# -*- coding: utf-8 -*-
+# File Name: socket_server.py
+# Author: James Hong
+# Created Date: 2017-10-24
+# Description: script for the server side
+######################################################import socket
 import sys
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
