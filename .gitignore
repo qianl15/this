@@ -38,3 +38,4 @@
 *.jpg
 *results/
 *.DS_Store
+*.out

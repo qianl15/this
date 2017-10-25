@@ -39,9 +39,9 @@ def compute_shot_boundaries(hists):
       boundaries.append(i)
   return boundaries
 
-def main(num = 1):
+def main(num = 1, fm_num = 1):
   
-  movie_path = util.download_video(num)
+  movie_path = util.download_video(num, fm_num)
   print('Detecting shots in movie {}'.format(movie_path))
   movie_name = 'shot_detect'
 
@@ -163,7 +163,8 @@ def main(num = 1):
     ############ ############ ############ ############
     # 4. Write montage to disk
     ############ ############ ############ ############
-    cv2.imwrite('detected_shots.jpg', montage_img)
+    cv2.imwrite(
+      'detected_shots_{:d}_{:d}.jpg'.format(num, fm_num), montage_img)
     stop = now()
     total_time += stop - start
     print('Successfully generated detected_shots.jpg')
@@ -172,9 +173,16 @@ def main(num = 1):
 
 if __name__ == "__main__":
   num = 1
+  fm_num = 1
+  # The first param is the # of video
+  # The second param is the # of format
   if len(sys.argv) > 1:
-    if len(sys.argv) != 2:
-      print('Please enter at most one parameter')
+    if len(sys.argv) == 2:
+      num = int(sys.argv[1])
+    elif len(sys.argv) == 3:
+      num = int(sys.argv[1])
+      fm_num = int(sys.argv[2])
+    else:
+      print('Please enter at most two parameters')
       exit()
-    num = int(sys.argv[1])
-  main(num)
+  main(num, fm_num)
