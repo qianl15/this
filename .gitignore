@@ -37,3 +37,6 @@
 *.trace
 *.jpg
 *results/
+*.serverless/
+*venv/
+*node_modules/
