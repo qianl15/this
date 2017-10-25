@@ -11,7 +11,7 @@ output_dir="./hist_results/"
 tmp=`date +"%T.%3N"`.tmp
 
 for vnum in ${video_nums[@]}; do
-  for fmnum in ${format_nums[@]}; do
+  for fmnum in ${format_nums2[@]}; do
     echo mprof run python2 histogram.py ${vnum} ${fmnum} ${output_dir}
     mprof run --multiprocess python2 histogram.py ${iter} ${vnum} ${fmnum} ${output_dir} >> ${tmp}
     mv *.dat ${output_dir}
