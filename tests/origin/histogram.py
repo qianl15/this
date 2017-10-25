@@ -20,9 +20,9 @@ from timeit import default_timer as now
 # choose which video we wanted to download, and the format
 # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
 # By default, we download the first video with the lowest quality
-def test_histogram(num = 1, fm_num = 1):
+def test_histogram(num = 1, fm_num = 1, out_dir = './'):
   test_video_path = util.download_video(num, fm_num)
-  outfile_name = 'output_hist_{}_{}.out'.format(num, fm_num)
+  outfile_name = out_dir + 'output_hist_{}_{}.out'.format(num, fm_num)
   f = open(outfile_name, 'w')
   f.write('Phase\tTime(s)\tfps\n')
   # Use GPU kernels if we have a GPU
@@ -77,7 +77,7 @@ def test_histogram(num = 1, fm_num = 1):
     f.write('Total\t {:.6f} \t{:.1f}\n'.format(
       total_time, input_table.num_rows() / total_time))
     hists_table.profiler().write_trace(
-      'test_hist_{:d}_{:d}.trace'.format(num, fm_num))
+      out_dir + 'test_hist_{:d}_{:d}.trace'.format(num, fm_num))
     print(db.summarize())
 
   return
@@ -86,6 +86,7 @@ def test_histogram(num = 1, fm_num = 1):
 if __name__ == "__main__":
   num = 1
   fm_num = 1
+  out_dir = './'
   # The first param is the # of video
   # The second param is the # of format
   if len(sys.argv) > 1:
@@ -94,7 +95,11 @@ if __name__ == "__main__":
     elif len(sys.argv) == 3:
       num = int(sys.argv[1])
       fm_num = int(sys.argv[2])
+    elif len(sys.argv) == 4:
+      num = int(sys.argv[1])
+      fm_num = int(sys.argv[2])
+      out_dir = sys.argv[3]
     else:
-      print('Please enter at most two parameters')
+      print('Please enter at most three parameters')
       exit()
-  test_histogram(num, fm_num)
+  test_histogram(num, fm_num, out_dir)

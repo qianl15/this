@@ -39,3 +39,4 @@
 *results/
 *.DS_Store
 *.out
+*.tmp
