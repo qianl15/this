@@ -1,7 +1,7 @@
 [submodule "scanner"]
 	path = scanner
 	url = https://github.com/qinglan233/scanner.git
-	branch = sampling-spacing
+	branch = master
 [submodule "mxnet-lambda"]
 	path = mxnet-lambda
 	url = https://github.com/qinglan233/mxnet-lambda.git
