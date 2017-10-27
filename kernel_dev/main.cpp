@@ -14,6 +14,7 @@
 #include <string>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <fstream>
 
 using boost::asio::ip::tcp;
 
@@ -21,7 +22,7 @@ class client
 {
 public:
     client(boost::asio::io_service& io_service,
-           const std::string& server, const std::string& path)
+           const std::string& server, const std::string& path, const std::string& b64ImgStr)
             : resolver_(io_service),
               socket_(io_service)
     {
@@ -29,10 +30,16 @@ public:
         // server will close the socket after transmitting the response. This will
         // allow us to treat all data up until the EOF as the content.
         std::ostream request_stream(&request_);
-        request_stream << "GET " << path << " HTTP/1.0\r\n";
+        request_stream << "PATH " << path << " HTTP/1.1\r\n";
         request_stream << "Host: " << server << "\r\n";
-        request_stream << "Accept: */*\r\n";
+        request_stream << "content-type: application/json;charset=UTF-8\r\n";
+        request_stream << "content-length: " << std::to_string(b64ImgStr.length()) << "\r\n";
         request_stream << "Connection: close\r\n\r\n";
+
+
+        request_stream << "{\"httpMethod\":\"POST\",\"pathWithQueryString\":\"/mxnet-test-dev-hello\",\"body\":\"{\\\"b64Img\\\": \\\""
+                       << b64ImgStr << "\\\"}\",\"headers\":{},\"stageVariables\":{},\"withAuthorization\":false}\r\n";
+        //request_stream << "Accept: */*\r\n";
 
         // Start an asynchronous resolve to translate the server and service names
         // into a list of endpoints.
@@ -195,17 +202,21 @@ int main(int argc, char* argv[])
 {
     try
     {
-        if (argc != 3)
+        if (argc != 4)
         {
-            std::cout << "Usage: async_client <server> <path>\n";
+            std::cout << "Usage: async_client <server> <path> <fileContainingPostBody>\n";
             std::cout << "Example:\n";
             std::cout << "  async_client www.boost.org /LICENSE_1_0.txt\n";
             return 1;
         }
 
         boost::asio::io_service io_service;
-        client c(io_service, "www.deelay.me", "/1000/hmpg.net");
-        client c2(io_service, argv[1], argv[2]);
+        std::ifstream b64File(argv[3]);
+        std::stringstream b64ImgStream;
+        b64ImgStream << b64File.rdbuf();
+        std::string b64ImgStr = b64ImgStream.str();
+        //client c(io_service, "www.deelay.me", "/1000/hmpg.net");
+        client c(io_service, argv[1], argv[2], b64ImgStr);
         io_service.run();
         std::cout << "should print first\n";
     }
