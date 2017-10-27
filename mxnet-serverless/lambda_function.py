@@ -16,6 +16,8 @@ import mxnet as mx
 import numpy as np
 
 from PIL import Image
+from io import BytesIO
+import base64
 from collections import namedtuple
 Batch = namedtuple('Batch', ['data'])
 
@@ -53,17 +55,18 @@ def load_model(s_fname, p_fname):
             aux_params[name] = v
     return symbol, arg_params, aux_params
 
-def predict(url, mod, synsets):
+def predict(b64Img, mod, synsets):
     '''
     predict labels for a given image
     '''
 
-    req = urllib2.urlopen(url)
-    img_file = tempfile.NamedTemporaryFile()
-    img_file.write(req.read())
-    img_file.flush()
+    #req = urllib2.urlopen(url)
+    #img_file = tempfile.NamedTemporaryFile()
+    #img_file.write(req.read())
+    #img_file.flush()
  
-    img = Image.open(img_file.name)
+    #img = Image.open(img_file.name)
+    img = Image.open(BytesIO(base64.b64decode(b64Img)))
 
     # PIL conversion
     #size = 224, 224
@@ -102,7 +105,9 @@ with open('synset.txt', 'r') as f:
 
 def lambda_handler(event, context):
 
-    url = ''
+    print("Event is :")
+    print(event)
+    b64Img = ''
     try:
         # API Gateway GET method
         if event['httpMethod'] == 'GET':
@@ -110,16 +115,18 @@ def lambda_handler(event, context):
         # API Gateway POST method
         elif event['httpMethod'] == 'POST':
             data = json.loads(event['body'])
-            url = data['url']
+            print("POST method, its data is:")
+            print(data['b64Img'])
+            b64Img = data['b64Img']
     except KeyError:
         # direct invocation
-        url = event['url']
+        b64Img = event['b64Img']
     
     sym, arg_params, aux_params = load_model(f_symbol_file.name, f_params_file.name)
     mod = mx.mod.Module(symbol=sym, label_names=None)
     mod.bind(for_training=False, data_shapes=[('data', (1,3,224,224))], label_shapes=mod._label_shapes)
     mod.set_params(arg_params, aux_params, allow_missing=True)
-    labels = predict(url, mod, synsets)
+    labels = predict(b64Img, mod, synsets)
     
     out = {
             "headers": {
