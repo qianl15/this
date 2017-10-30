@@ -14,6 +14,7 @@
 #include <string>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <boost/asio/ssl.hpp>
 #include <fstream>
 
 using boost::asio::ip::tcp;
@@ -24,8 +25,15 @@ public:
     client(boost::asio::io_service& io_service,
            const std::string& server, const std::string& path, const std::string& b64ImgStr)
             : resolver_(io_service),
-              socket_(io_service)
+              ctx(io_service, boost::asio::ssl::context::method::sslv23_client),
+              socket_(io_service, ctx)
     {
+        ctx.set_default_verify_paths();
+        /*ctx.set_options(boost::asio::ssl::context::default_workarounds
+                        | boost::asio::ssl::context::no_sslv2
+                        | boost::asio::ssl::context::no_sslv3);*/
+        //socket_.set_verify_mode(boost::asio::ssl::verify_none);
+        //ctx.load_verify_file("ca.pem");
         // Form the request. We specify the "Connection: close" header so that the
         // server will close the socket after transmitting the response. This will
         // allow us to treat all data up until the EOF as the content.
@@ -43,7 +51,7 @@ public:
 
         // Start an asynchronous resolve to translate the server and service names
         // into a list of endpoints.
-        tcp::resolver::query query(server, "http");
+        tcp::resolver::query query(server, "https");
         resolver_.async_resolve(query,
                                 boost::bind(&client::handle_resolve, this,
                                             boost::asio::placeholders::error,
@@ -56,10 +64,13 @@ private:
     {
         if (!err)
         {
+            socket_.set_verify_mode(boost::asio::ssl::verify_peer);
+            socket_.set_verify_callback(
+                    boost::bind(&client::verify_certificate, this, _1, _2));
             // Attempt a connection to the first endpoint in the list. Each endpoint
             // will be tried until we successfully establish a connection.
             tcp::endpoint endpoint = *endpoint_iterator;
-            socket_.async_connect(endpoint,
+            socket_.lowest_layer().async_connect(endpoint,
                                   boost::bind(&client::handle_connect, this,
                                               boost::asio::placeholders::error, ++endpoint_iterator));
         }
@@ -67,6 +78,26 @@ private:
         {
             std::cout << "Error: " << err.message() << "\n";
         }
+        //-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DOPENSSL_INCLUDE_DIR==/usr/local/opt/openssl/lib
+    }
+
+    bool verify_certificate(bool preverified,
+                            boost::asio::ssl::verify_context& ctx)
+    {
+        // The verify callback can be used to check whether the certificate that is
+        // being presented is valid for the peer. For example, RFC 2818 describes
+        // the steps involved in doing this for HTTPS. Consult the OpenSSL
+        // documentation for more details. Note that the callback is called once
+        // for each certificate in the certificate chain, starting from the root
+        // certificate authority.
+
+        // In this example we will simply print the certificate's subject name.
+        char subject_name[256];
+        X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
+        X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
+        std::cout << "Verifying " << subject_name << "\n";
+
+        return preverified;
     }
 
     void handle_connect(const boost::system::error_code& err,
@@ -74,6 +105,7 @@ private:
     {
         if (!err)
         {
+            socket_.async_handshake(boost::asio::ssl::stream_base::handshake_type::client);
             // The connection was successful. Send the request.
             boost::asio::async_write(socket_, request_,
                                      boost::bind(&client::handle_write_request, this,
@@ -82,9 +114,9 @@ private:
         else if (endpoint_iterator != tcp::resolver::iterator())
         {
             // The connection failed. Try the next endpoint in the list.
-            socket_.close();
+            socket_.lowest_layer().close();
             tcp::endpoint endpoint = *endpoint_iterator;
-            socket_.async_connect(endpoint,
+            socket_.lowest_layer().async_connect(endpoint,
                                   boost::bind(&client::handle_connect, this,
                                               boost::asio::placeholders::error, ++endpoint_iterator));
         }
@@ -193,7 +225,10 @@ private:
     }
 
     tcp::resolver resolver_;
-    tcp::socket socket_;
+    // https://stackoverflow.com/questions/40036854/creating-a-https-request-using-boost-asio-and-openssl
+    // http://www.boost.org/doc/libs/1_65_1/doc/html/boost_asio/overview/ssl.html
+    boost::asio::ssl::context ctx;
+    boost::asio::ssl::stream<tcp::socket> socket_;
     boost::asio::streambuf request_;
     boost::asio::streambuf response_;
 };
