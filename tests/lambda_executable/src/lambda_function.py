@@ -33,7 +33,7 @@ def lambda_handler(event, context):
 
   user_str = '\"' + user_str + '\"'
   exe = Executable('executables/' + exe_file)
-  result = exe.run('{}'.format(user_str))
+  result = exe.run(user_str)
   print('OUT: {}\nERR: {}\nRET: {}'.format(
     exe.stdout, exe.stderr, exe.returncode))
   out = {
