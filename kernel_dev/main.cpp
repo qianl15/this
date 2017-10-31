@@ -50,12 +50,11 @@ public:
         request_stream << "POST " << path << " HTTP/1.1\r\n";
         request_stream << "Host: " << server << "\r\n";
         request_stream << "content-type: application/json;charset=UTF-8\r\n";
-        request_stream << "content-length: " << std::to_string(b64ImgStr.length()) /*"76152"*/ << "\r\n\r\n";
-        //request_stream << "Connection: close\r\n\r\n";
+        std::string bodyStartStr = "{\"httpMethod\":\"POST\",\"pathWithQueryString\":\"/mxnet-test-dev-hello\",\"body\":\"{\\\"b64Img\\\": \\\"";
+        std::string bodyEndStr = "\\\"}\",\"headers\":{},\"stageVariables\":{},\"withAuthorization\":false}\r\n";
+        request_stream << "content-length: " << std::to_string(bodyStartStr.length() + b64ImgStr.length() + bodyEndStr.length()) << "\r\n\r\n";
 
-
-        request_stream << "{\"httpMethod\":\"POST\",\"pathWithQueryString\":\"/mxnet-test-dev-hello\",\"body\":\"{\\\"b64Img\\\": \\\""
-                       << b64ImgStr << "\\\"}\",\"headers\":{},\"stageVariables\":{},\"withAuthorization\":false}\r\n";
+        request_stream << bodyStartStr << b64ImgStr << bodyEndStr;
         //request_stream << "Accept: */*\r\n";
 
         // Start an asynchronous resolve to translate the server and service names
