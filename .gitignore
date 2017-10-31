@@ -40,3 +40,9 @@
 *.DS_Store
 *.out
 *.tmp
+*.serverless/
+*venv/
+*node_modules/
+*.swp
+*output_file
+
