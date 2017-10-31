@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 11)
 #add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl/1.0.2l -DOPENSSL_LIBRARIES=/usr/local/Cellar/openssl/1.0.2l/lib -DOPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2l/include)
 
 #add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl/1.0.2l)
+
 #add_definitions(-DOPENSSL_ROOT_DIR=/usr/local/bin/openssl -DOPENSSL_INCLUDE_DIR=/usr/include/openssl -DOPENSSL_LIBRARIES=/usr/lib/ssl)
 find_package(Boost COMPONENTS thread program_options regex python REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -38,5 +39,12 @@ set(CMAKE_CXX_FLAGS "-DBOOST_ERROR_CODE_HEADER_ONLY")
 
 add_executable(kernel_dev ${SOURCE_FILES})
 message(${OPENSSL_LIBRARIES})
-set(PLATFORM_LINK_FLAGS "-pthread")
+
+if(UNIX)
+  set(PLATFORM_LINK_FLAGS "-pthread")
+elseif(APPLE)
+  set(PLATFORM_LINK_FLAGS "")
+endif()
+
 target_link_libraries(kernel_dev ${OPENSSL_LIBRARIES} ${PLATFORM_LINK_FLAGS})
+
