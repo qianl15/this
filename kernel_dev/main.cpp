@@ -181,7 +181,7 @@ private:
             std::cout << "Connect failed: " << err.message() << "\n";
         }
     }
-// a2fqn2y3y2.execute-api.us-east-1.amazonaws.com /prod/mxnet-test-dev-hello /Users/durst/dev/F16-17/vass/mxnet-serverless/testimg.jpg
+    
     void handle_handshake(const boost::system::error_code& error)
     {
         if (!error)
