@@ -181,7 +181,7 @@ private:
             std::cout << "Connect failed: " << err.message() << "\n";
         }
     }
-
+  
     void handle_handshake(const boost::system::error_code& error)
     {
         if (!error)
