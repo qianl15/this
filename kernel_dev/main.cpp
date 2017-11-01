@@ -20,9 +20,11 @@
 #include <boost/archive/iterators/binary_from_base64.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/archive/iterators/insert_linebreaks.hpp>
+#include "json.hpp"
 
 using namespace boost::archive::iterators;
 using boost::asio::ip::tcp;
+using json = nlohmann::json;
 
 class client
 {
@@ -345,6 +347,12 @@ int main(int argc, char* argv[])
         while (!c.finished) {}
         std::cout << "The response is: \n";
         std::cout << c.resultss.str();
+        json js = json::parse(c.resultss.str());
+        std::string bodystr = js["body"];
+        std::cout << "\n The body content is: \n";
+        std::cout << bodystr << std::endl;
+        // std::cout << "\n The json is: \n";
+        // std::cout << js.dump(4) << std::endl;
     }
     catch (std::exception& e)
     {
