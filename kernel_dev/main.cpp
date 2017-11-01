@@ -135,7 +135,7 @@ private:
     {
         if (!err)
         {
-            std::cout << "Resolve OK" << "\n";
+            // std::cout << "Resolve OK" << "\n";
             socket_.set_verify_mode(boost::asio::ssl::verify_peer);
             socket_.set_verify_callback(
                     boost::bind(&client::verify_certificate, this, _1, _2));
@@ -164,7 +164,7 @@ private:
         char subject_name[256];
         X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
         X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
-        std::cout << "Verifying " << subject_name << "\n";
+        // std::cout << "Verifying " << subject_name << "\n";
 
         return preverified;
     }
@@ -173,7 +173,7 @@ private:
     {
         if (!err)
         {
-            std::cout << "Connect OK " << "\n";
+            // std::cout << "Connect OK " << "\n";
             // socket_.lowest_layer().set_option(tcp::no_delay(true));
             socket_.async_handshake(boost::asio::ssl::stream_base::client,
                                     boost::bind(&client::handle_handshake, this,
@@ -189,10 +189,10 @@ private:
     {
         if (!error)
         {
-            std::cout << "Handshake OK " << "\n";
-            std::cout << "Request: " << "\n";
+            // std::cout << "Handshake OK " << "\n";
+            // std::cout << "Request: " << "\n";
             const char* header=boost::asio::buffer_cast<const char*>(request_.data());
-            std::cout << header << "\n";
+            // std::cout << header << "\n";
 
             // The handshake was successful. Send the request.
             boost::asio::async_write(socket_, request_,
@@ -265,9 +265,10 @@ private:
             // Process the response headers.
             std::istream response_stream(&response_);
             std::string header;
-            while (std::getline(response_stream, header) && header != "\r")
-                std::cout << header << "\n";
-            std::cout << "\n";
+            while (std::getline(response_stream, header) && header != "\r") {
+                // std::cout << header << "\n";
+            }
+            // std::cout << "\n";
 
             // Write whatever content we already have to output.
             if (response_.size() > 0)
@@ -334,7 +335,7 @@ int main(int argc, char* argv[])
         //client c(io_service, "www.deelay.me", "/1000/hmpg.net");
         client c(io_service, argv[1], argv[2], binaryImgStr);
         io_service.run();
-        std::cout << "should print first\n";
+        // std::cout << "should print first\n";
     }
     catch (std::exception& e)
     {
