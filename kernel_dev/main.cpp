@@ -52,14 +52,16 @@ public:
         request_stream << "content-type: application/json;charset=UTF-8\r\n";
         std::string bodyStartStr = "{\"httpMethod\":\"POST\",\"pathWithQueryString\":\"/mxnet-test-dev-hello\",\"body\":\"{\\\"b64Img\\\": \\\"";
         std::string bodyEndStr = "\\\"}\",\"headers\":{},\"stageVariables\":{},\"withAuthorization\":false}\r\n";
-        request_stream << "content-length: " << std::to_string(bodyStartStr.length() + b64ImgStr.length() + bodyEndStr.length()) << "\r\n\r\n";
-
+        request_stream << "content-length: " << std::to_string(bodyStartStr.length() + b64ImgStr.length() + bodyEndStr.length()) << "\r\n";
+        request_stream << "Connection: close\r\n\r\n";
         request_stream << bodyStartStr << b64ImgStr << bodyEndStr;
+        
         //request_stream << "Accept: */*\r\n";
 
         // Start an asynchronous resolve to translate the server and service names
         // into a list of endpoints.
         tcp::resolver::query query(server, "https");
+
         resolver_.async_resolve(query,
                                 boost::bind(&client::handle_resolve, this,
                                             boost::asio::placeholders::error,
@@ -172,6 +174,7 @@ private:
         if (!err)
         {
             std::cout << "Connect OK " << "\n";
+            // socket_.lowest_layer().set_option(tcp::no_delay(true));
             socket_.async_handshake(boost::asio::ssl::stream_base::client,
                                     boost::bind(&client::handle_handshake, this,
                                                 boost::asio::placeholders::error));
@@ -286,6 +289,7 @@ private:
     {
         if (!err)
         {
+            // std::cout << "reading the content..." << std::endl;
             // Write all of the data that has been read so far.
             std::cout << &response_;
 
