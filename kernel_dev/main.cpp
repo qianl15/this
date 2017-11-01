@@ -27,6 +27,8 @@ using boost::asio::ip::tcp;
 class client
 {
 public:
+    std::stringstream resultss;
+    bool finished = false;
     client(boost::asio::io_service& io_service,
            const std::string& server, const std::string& path, const std::string& binaryImgStr)
             : resolver_(io_service),
@@ -245,7 +247,7 @@ private:
                 std::cout << status_code << "\n";
                 return;
             }
-            std::cout << "Status code: " << status_code << "\n";
+            // std::cout << "Status code: " << status_code << "\n";
 
             // Read the response headers, which are terminated by a blank line.
             boost::asio::async_read_until(socket_, response_, "\r\n\r\n",
@@ -272,7 +274,7 @@ private:
 
             // Write whatever content we already have to output.
             if (response_.size() > 0)
-                std::cout << &response_;
+                resultss << &response_;
 
             // Start reading remaining data until EOF.
             boost::asio::async_read(socket_, response_,
@@ -292,8 +294,8 @@ private:
         {
             // std::cout << "reading the content..." << std::endl;
             // Write all of the data that has been read so far.
-            std::cout << &response_;
-
+            // std::cout << &response_;
+            resultss << &response_;
             // Continue reading remaining data until EOF.
             boost::asio::async_read(socket_, response_,
                                     boost::asio::transfer_at_least(1),
@@ -303,6 +305,10 @@ private:
         else if (err != boost::asio::error::eof)
         {
             std::cout << "Error: " << err << "\n";
+        } else {
+            // std::cout << std::endl;
+            resultss << std::endl;
+            finished = true;
         }
     }
 
@@ -336,6 +342,9 @@ int main(int argc, char* argv[])
         client c(io_service, argv[1], argv[2], binaryImgStr);
         io_service.run();
         // std::cout << "should print first\n";
+        while (!c.finished) {}
+        std::cout << "The response is: \n";
+        std::cout << c.resultss.str();
     }
     catch (std::exception& e)
     {
