@@ -323,6 +323,7 @@ private:
     boost::asio::streambuf response_;
 };
 
+
 int main(int argc, char* argv[])
 {
     try
@@ -351,8 +352,12 @@ int main(int argc, char* argv[])
         std::string bodystr = js["body"];
         std::cout << "\n The body content is: \n";
         std::cout << bodystr << std::endl;
-        // std::cout << "\n The json is: \n";
-        // std::cout << js.dump(4) << std::endl;
+
+        json bodyjs = json::parse(bodystr);
+        json::iterator it = bodyjs.begin();
+        std::cout << "Highest possible class is: ";
+        std::cout << it.key() << " : " << it.value() << "\n";
+        
     }
     catch (std::exception& e)
     {
