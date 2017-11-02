@@ -354,10 +354,12 @@ int main(int argc, char* argv[])
         std::cout << bodystr << std::endl;
 
         json bodyjs = json::parse(bodystr);
-        json::iterator it = bodyjs.begin();
-        std::cout << "Highest possible class is: ";
-        std::cout << it.key() << " : " << it.value() << "\n";
-        
+        std::cout << "\n Highest possible class is: ";
+        // std::cout << bodyjs["0"] << "\n";
+        json objs = bodyjs["0"];
+        std::string ret_class = objs.begin().key();
+        std::cout << ret_class << "\n";
+        // json 
     }
     catch (std::exception& e)
     {
