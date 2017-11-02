@@ -94,9 +94,11 @@ def predict(b64Img, mod, synsets):
     prob = mod.get_outputs()[0].asnumpy()
     prob = np.squeeze(prob)
     a = np.argsort(prob)[::-1]
-    out = '{"%s" : "%s"' %(synsets[a[0]], prob[a[0]]) 
+    out = '{"0" : {"%s" : "%s"}' %(synsets[a[0]], prob[a[0]]) 
+    cnt = 0;
     for i in a[1:5]:
-        out += ', "%s" : "%s"' %(synsets[i], prob[i])
+        cnt += 1;
+        out += ', "%d" : {"%s" : "%s"}' %(cnt, synsets[i], prob[i])
     out += "}"
     return out
 

@@ -12,6 +12,7 @@
 #include <istream>
 #include <ostream>
 #include <string>
+#include <vector>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/asio/ssl.hpp>
@@ -20,6 +21,7 @@
 #include <boost/archive/iterators/binary_from_base64.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/archive/iterators/insert_linebreaks.hpp>
+#include <ctime>
 #include "json.hpp"
 
 using namespace boost::archive::iterators;
@@ -30,7 +32,6 @@ class client
 {
 public:
     std::stringstream resultss;
-    bool finished = false;
     client(boost::asio::io_service& io_service,
            const std::string& server, const std::string& path, const std::string& binaryImgStr)
             : resolver_(io_service),
@@ -72,6 +73,19 @@ public:
                                             boost::asio::placeholders::iterator));
     }
 
+    void check_finished() {
+        if (!finished) {
+            std::cout << "something wrong, lambda did not complete" << std::endl;
+        }
+    }
+    ~client() {
+        std::cout << "destructor called" << std::endl;
+        // release the resources!
+        // boost::asio::ssl::context ctx;
+        // boost::asio::ssl::stream<tcp::socket> socket_;
+        // boost::asio::streambuf request_;
+        // boost::asio::streambuf response_;
+    }
 private:
 
 
@@ -321,43 +335,164 @@ private:
     boost::asio::ssl::stream<tcp::socket> socket_;
     boost::asio::streambuf request_;
     boost::asio::streambuf response_;
+    bool finished = false;
 };
 
+void execute_frame(const std::string& server, const std::string& path, 
+                    const std::string& binaryImgStr) {
+
+    boost::asio::io_service io_service;
+    client c(io_service, server, path, binaryImgStr);
+    io_service.run();
+
+    c.check_finished();
+    // std::cout << "The response is: \n";
+    // std::cout << c.resultss.str();
+    json js = json::parse(c.resultss.str());
+    std::string bodystr = js["body"];
+    // std::cout << "\n The body content is: \n";
+    // std::cout << bodystr << std::endl;
+
+    json bodyjs = json::parse(bodystr);
+    std::cout << "\nHighest possible class is: ";
+    // std::cout << bodyjs["0"] << "\n";
+    json objs = bodyjs["0"];
+    std::string ret_class = objs.begin().key();
+    std::cout << ret_class << "\n";
+
+}
+
+std::string parse_result(const std::string& resultstr) {
+
+    json js = json::parse(resultstr);
+    std::string bodystr = js["body"];
+    // std::cout << "\n The body content is: \n";
+    // std::cout << bodystr << std::endl;
+
+    json bodyjs = json::parse(bodystr);
+    // std::cout << "\nHighest possible class is: ";
+    // std::cout << bodyjs["0"] << "\n";
+    json objs = bodyjs["0"];
+    std::string ret_class = objs.begin().key();
+    // std::cout << ret_class << "\n";
+    return ret_class;
+}
+
+// asynchronously execute a sequence of frames, duplicate the call
+void async_execute_frames(const std::string& server, const std::string& path, 
+                    const std::string& binaryImgStr, const int iters) {
+    int maxnum = iters;
+    std::vector<client *> frames;
+    std::vector<std::string> results;
+    boost::asio::io_service io_service;
+
+    // async launch a vector of frames
+    for (int i = 0; i < maxnum; ++i) {
+        client *pc = new client(io_service, server, path, binaryImgStr);
+        frames.push_back(pc);
+        std::cout << "launch lambda: " << i << std::endl;
+    }
+    
+    io_service.run(); // this is a blocking operation. Wait all finished.
+
+    // then sync wait for results
+    for (int i = 0; i < maxnum; ++i) {
+        // wait for the execution
+        frames[i]->check_finished();
+        std::cout << "lambda " << i << " finished" << std::endl;
+        // std::cout << "result string : " << i << "\t";
+        // std::cout << frames[i]->resultss.str() << std::endl;
+        std::string result = parse_result(frames[i]->resultss.str());
+        
+        results.push_back(result);
+    }
+    
+    // then display the results
+    for (int i = 0; i < maxnum; ++i) {
+        std::cout << "result : " << i << "\t";
+        std::cout << results[i] << std::endl;
+    }
+
+    for (int i = 0; i < maxnum; ++i) {
+        delete frames[i];
+        frames[i] = NULL;
+    }
+    return;
+}
+
+// sequentially execute frames, one after another
+void sync_execute_frames(const std::string& server, const std::string& path, 
+                    const std::string& binaryImgStr, const int iters) {
+    int maxnum = iters;
+    std::vector<std::string> results;
+
+    // async launch a vector of frames
+    for (int i = 0; i < maxnum; ++i) {
+        boost::asio::io_service io_service;
+        client *pc = new client(io_service, server, path, binaryImgStr);
+        io_service.run();
+        std::cout << "launch lambda: " << i << std::endl;
+        pc->check_finished();
+        std::cout << "lambda " << i << " finished" << std::endl;
+        std::string result = parse_result(pc->resultss.str());
+        results.push_back(result);
+        delete pc;
+    }
+    
+    
+    // then display the results
+    for (int i = 0; i < maxnum; ++i) {
+        std::cout << "result : " << i << "\t";
+        std::cout << results[i] << std::endl;
+    }
+    return;
+}
 
 int main(int argc, char* argv[])
 {
     try
     {
-        if (argc != 4)
+        if (argc != 5)
         {
-            std::cout << "Usage: async_client <server> <path> <fileContainingPostBody>\n";
+            std::cout << "Usage: kernel_dev <server> <path> <fileContainingPostBody> <iters>\n";
             std::cout << "Example:\n";
-            std::cout << "  async_client www.boost.org /LICENSE_1_0.txt\n";
+            std::cout << "  async_client www.boost.org /LICENSE_1_0.txt 100\n";
             return 1;
         }
 
-        boost::asio::io_service io_service;
         std::ifstream b64File(argv[3]);
+        int iters = atoi(argv[4]);
         std::stringstream b64ImgStream;
         b64ImgStream << b64File.rdbuf();
         std::string binaryImgStr = b64ImgStream.str();
         //client c(io_service, "www.deelay.me", "/1000/hmpg.net");
-        client c(io_service, argv[1], argv[2], binaryImgStr);
-        io_service.run();
-        // std::cout << "should print first\n";
-        while (!c.finished) {}
-        std::cout << "The response is: \n";
-        std::cout << c.resultss.str();
-        json js = json::parse(c.resultss.str());
-        std::string bodystr = js["body"];
-        std::cout << "\n The body content is: \n";
-        std::cout << bodystr << std::endl;
 
-        json bodyjs = json::parse(bodystr);
-        json::iterator it = bodyjs.begin();
-        std::cout << "Highest possible class is: ";
-        std::cout << it.key() << " : " << it.value() << "\n";
-        
+        struct timeval start, stop;
+        double duration;
+
+        std::cout << "single run: \n";
+        gettimeofday(&start, NULL);
+        execute_frame(argv[1], argv[2], binaryImgStr);
+        gettimeofday(&stop, NULL);
+        duration = (stop.tv_sec - start.tv_sec) * 1000.0 +
+                   (stop.tv_usec - start.tv_usec) / 1000.0;
+        std::cout << "single run time: " << duration << " ms\n";
+
+        std::cout << "\nasynchronous multiple runs: " << iters << " times \n";
+        gettimeofday(&start, NULL);
+        async_execute_frames(argv[1], argv[2], binaryImgStr, iters);
+        gettimeofday(&stop, NULL);
+        duration = (stop.tv_sec - start.tv_sec) * 1000.0 +
+                   (stop.tv_usec - start.tv_usec) / 1000.0;
+        std::cout << "Async execution run time: " << duration << " ms\n";
+
+        std::cout << "\nsynchronous multiple runs: "<< iters << " times \n";
+        gettimeofday(&start, NULL);
+        sync_execute_frames(argv[1], argv[2], binaryImgStr, iters);
+        gettimeofday(&stop, NULL);
+        duration = (stop.tv_sec - start.tv_sec) * 1000.0 +
+                   (stop.tv_usec - start.tv_usec) / 1000.0;
+        std::cout << "Sync execution run time: " << duration << " ms\n";
     }
     catch (std::exception& e)
     {
