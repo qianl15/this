@@ -20,13 +20,17 @@
 #include <boost/archive/iterators/binary_from_base64.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/archive/iterators/insert_linebreaks.hpp>
+#include "json.hpp"
 
 using namespace boost::archive::iterators;
 using boost::asio::ip::tcp;
+using json = nlohmann::json;
 
 class client
 {
 public:
+    std::stringstream resultss;
+    bool finished = false;
     client(boost::asio::io_service& io_service,
            const std::string& server, const std::string& path, const std::string& binaryImgStr)
             : resolver_(io_service),
@@ -52,14 +56,16 @@ public:
         request_stream << "content-type: application/json;charset=UTF-8\r\n";
         std::string bodyStartStr = "{\"httpMethod\":\"POST\",\"pathWithQueryString\":\"/mxnet-test-dev-hello\",\"body\":\"{\\\"b64Img\\\": \\\"";
         std::string bodyEndStr = "\\\"}\",\"headers\":{},\"stageVariables\":{},\"withAuthorization\":false}\r\n";
-        request_stream << "content-length: " << std::to_string(bodyStartStr.length() + b64ImgStr.length() + bodyEndStr.length()) << "\r\n\r\n";
-
+        request_stream << "content-length: " << std::to_string(bodyStartStr.length() + b64ImgStr.length() + bodyEndStr.length()) << "\r\n";
+        request_stream << "Connection: close\r\n\r\n";
         request_stream << bodyStartStr << b64ImgStr << bodyEndStr;
+        
         //request_stream << "Accept: */*\r\n";
 
         // Start an asynchronous resolve to translate the server and service names
         // into a list of endpoints.
         tcp::resolver::query query(server, "https");
+
         resolver_.async_resolve(query,
                                 boost::bind(&client::handle_resolve, this,
                                             boost::asio::placeholders::error,
@@ -133,7 +139,7 @@ private:
     {
         if (!err)
         {
-            std::cout << "Resolve OK" << "\n";
+            // std::cout << "Resolve OK" << "\n";
             socket_.set_verify_mode(boost::asio::ssl::verify_peer);
             socket_.set_verify_callback(
                     boost::bind(&client::verify_certificate, this, _1, _2));
@@ -162,7 +168,7 @@ private:
         char subject_name[256];
         X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
         X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
-        std::cout << "Verifying " << subject_name << "\n";
+        // std::cout << "Verifying " << subject_name << "\n";
 
         return preverified;
     }
@@ -171,7 +177,8 @@ private:
     {
         if (!err)
         {
-            std::cout << "Connect OK " << "\n";
+            // std::cout << "Connect OK " << "\n";
+            // socket_.lowest_layer().set_option(tcp::no_delay(true));
             socket_.async_handshake(boost::asio::ssl::stream_base::client,
                                     boost::bind(&client::handle_handshake, this,
                                                 boost::asio::placeholders::error));
@@ -181,15 +188,15 @@ private:
             std::cout << "Connect failed: " << err.message() << "\n";
         }
     }
-
+  
     void handle_handshake(const boost::system::error_code& error)
     {
         if (!error)
         {
-            std::cout << "Handshake OK " << "\n";
-            std::cout << "Request: " << "\n";
+            // std::cout << "Handshake OK " << "\n";
+            // std::cout << "Request: " << "\n";
             const char* header=boost::asio::buffer_cast<const char*>(request_.data());
-            std::cout << header << "\n";
+            // std::cout << header << "\n";
 
             // The handshake was successful. Send the request.
             boost::asio::async_write(socket_, request_,
@@ -242,7 +249,7 @@ private:
                 std::cout << status_code << "\n";
                 return;
             }
-            std::cout << "Status code: " << status_code << "\n";
+            // std::cout << "Status code: " << status_code << "\n";
 
             // Read the response headers, which are terminated by a blank line.
             boost::asio::async_read_until(socket_, response_, "\r\n\r\n",
@@ -262,13 +269,14 @@ private:
             // Process the response headers.
             std::istream response_stream(&response_);
             std::string header;
-            while (std::getline(response_stream, header) && header != "\r")
-                std::cout << header << "\n";
-            std::cout << "\n";
+            while (std::getline(response_stream, header) && header != "\r") {
+                // std::cout << header << "\n";
+            }
+            // std::cout << "\n";
 
             // Write whatever content we already have to output.
             if (response_.size() > 0)
-                std::cout << &response_;
+                resultss << &response_;
 
             // Start reading remaining data until EOF.
             boost::asio::async_read(socket_, response_,
@@ -286,9 +294,10 @@ private:
     {
         if (!err)
         {
+            // std::cout << "reading the content..." << std::endl;
             // Write all of the data that has been read so far.
-            std::cout << &response_;
-
+            // std::cout << &response_;
+            resultss << &response_;
             // Continue reading remaining data until EOF.
             boost::asio::async_read(socket_, response_,
                                     boost::asio::transfer_at_least(1),
@@ -298,6 +307,10 @@ private:
         else if (err != boost::asio::error::eof)
         {
             std::cout << "Error: " << err << "\n";
+        } else {
+            // std::cout << std::endl;
+            resultss << std::endl;
+            finished = true;
         }
     }
 
@@ -330,7 +343,16 @@ int main(int argc, char* argv[])
         //client c(io_service, "www.deelay.me", "/1000/hmpg.net");
         client c(io_service, argv[1], argv[2], binaryImgStr);
         io_service.run();
-        std::cout << "should print first\n";
+        // std::cout << "should print first\n";
+        while (!c.finished) {}
+        std::cout << "The response is: \n";
+        std::cout << c.resultss.str();
+        json js = json::parse(c.resultss.str());
+        std::string bodystr = js["body"];
+        std::cout << "\n The body content is: \n";
+        std::cout << bodystr << std::endl;
+        // std::cout << "\n The json is: \n";
+        // std::cout << js.dump(4) << std::endl;
     }
     catch (std::exception& e)
     {
