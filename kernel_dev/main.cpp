@@ -323,6 +323,28 @@ private:
     boost::asio::streambuf response_;
 };
 
+void execute_frame(const std::string& server, const std::string& path, const std::string& binaryImgStr) {
+
+    boost::asio::io_service io_service;
+    client c(io_service, server, path, binaryImgStr);
+    io_service.run();
+
+    while (!c.finished) {}
+    std::cout << "The response is: \n";
+    std::cout << c.resultss.str();
+    json js = json::parse(c.resultss.str());
+    std::string bodystr = js["body"];
+    std::cout << "\n The body content is: \n";
+    std::cout << bodystr << std::endl;
+
+    json bodyjs = json::parse(bodystr);
+    std::cout << "\nHighest possible class is: ";
+    // std::cout << bodyjs["0"] << "\n";
+    json objs = bodyjs["0"];
+    std::string ret_class = objs.begin().key();
+    std::cout << ret_class << "\n";
+
+}
 
 int main(int argc, char* argv[])
 {
@@ -336,30 +358,13 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        boost::asio::io_service io_service;
         std::ifstream b64File(argv[3]);
         std::stringstream b64ImgStream;
         b64ImgStream << b64File.rdbuf();
         std::string binaryImgStr = b64ImgStream.str();
         //client c(io_service, "www.deelay.me", "/1000/hmpg.net");
-        client c(io_service, argv[1], argv[2], binaryImgStr);
-        io_service.run();
-        // std::cout << "should print first\n";
-        while (!c.finished) {}
-        std::cout << "The response is: \n";
-        std::cout << c.resultss.str();
-        json js = json::parse(c.resultss.str());
-        std::string bodystr = js["body"];
-        std::cout << "\n The body content is: \n";
-        std::cout << bodystr << std::endl;
-
-        json bodyjs = json::parse(bodystr);
-        std::cout << "\n Highest possible class is: ";
-        // std::cout << bodyjs["0"] << "\n";
-        json objs = bodyjs["0"];
-        std::string ret_class = objs.begin().key();
-        std::cout << ret_class << "\n";
-        // json 
+        execute_frame(argv[1], argv[2], binaryImgStr);
+        
     }
     catch (std::exception& e)
     {
