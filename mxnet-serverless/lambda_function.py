@@ -94,10 +94,10 @@ def predict(b64Img, mod, synsets):
     prob = mod.get_outputs()[0].asnumpy()
     prob = np.squeeze(prob)
     a = np.argsort(prob)[::-1]
-    out = '' 
-    for i in a[0:5]:
-        out += 'probability=%f, class=%s , ' %(prob[i], synsets[i])
-    out += "\n"
+    out = '{%s : %s' %(synsets[a[0]], prob[a[0]]) 
+    for i in a[1:5]:
+        out += ', %s : %s' %(synsets[i], prob[i])
+    out += "}\n"
     return out
 
 with open('synset.txt', 'r') as f:
