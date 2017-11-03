@@ -79,12 +79,7 @@ public:
         }
     }
     ~client() {
-        std::cout << "destructor called" << std::endl;
-        // release the resources!
-        // boost::asio::ssl::context ctx;
-        // boost::asio::ssl::stream<tcp::socket> socket_;
-        // boost::asio::streambuf request_;
-        // boost::asio::streambuf response_;
+       
     }
 private:
 
