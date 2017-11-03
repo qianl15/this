@@ -38,6 +38,7 @@ def convert_video_to_jpegs(fps, quality, logLevel):
         FFMPEG_PATH, 
         '-i', INPUT_FILE_PATH, 
         '-v', logLevel,
+        '-xerror',
         '-q:v', str(quality),
         '-vf',
         'fps=%d' % fps, 
