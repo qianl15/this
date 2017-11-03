@@ -13,9 +13,11 @@
 #include <ostream>
 #include <string>
 #include <vector>
+#include <chrono>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/asio/ssl.hpp>
+#include <thread>
 #include <fstream>
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/binary_from_base64.hpp>
@@ -204,7 +206,7 @@ private:
         {
             // std::cout << "Handshake OK " << "\n";
             // std::cout << "Request: " << "\n";
-            const char* header=boost::asio::buffer_cast<const char*>(request_.data());
+            // const char* header=boost::asio::buffer_cast<const char*>(request_.data());
             // std::cout << header << "\n";
 
             // The handshake was successful. Send the request.
@@ -225,6 +227,7 @@ private:
             // Read the response status line. The response_ streambuf will
             // automatically grow to accommodate the entire line. The growth may be
             // limited by passing a maximum size to the streambuf constructor.
+            // std::cout << "finished transfer data" << std::endl;
             boost::asio::async_read_until(socket_, response_, "\r\n",
                                           boost::bind(&client::handle_read_status_line, this,
                                                       boost::asio::placeholders::error));
@@ -386,9 +389,12 @@ void async_execute_frames(const std::string& server, const std::string& path,
         } else {
             pc = new client(io_service, server, path, binaryImgStr2);
         }
-        
+        io_service.poll(); // run the ready handlers.
+
         frames.push_back(pc);
         std::cout << "launch lambda: " << i << std::endl;
+        // std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
     }
     
     io_service.run(); // this is a blocking operation. Wait all finished.
@@ -403,13 +409,29 @@ void async_execute_frames(const std::string& server, const std::string& path,
         std::string result;
         if (frames[i]->resultss.str().size() > 0) {
             result = parse_result(frames[i]->resultss.str());
+            results.push_back(result);
         }
         else {
-            result = "nullstring";
-            std::cout << "null string" << std::endl;
+            std::cout << "null string, retry" << std::endl;
+            delete frames[i];
+            client *pc;
+            if (i < maxnum / 2) {
+                pc = new client(io_service, server, path, binaryImgStr);
+            } else {
+                pc = new client(io_service, server, path, binaryImgStr2);
+            }
+            frames[i] = pc;
+            io_service.run();
+            std::cout << "retry finished" << std::endl;
+            if (pc->resultss.str().size() > 0) {
+                result = parse_result(pc->resultss.str());
+                results.push_back(result);
+            } else {
+                results.push_back("nullstring");
+            }
         }
         
-        results.push_back(result);
+        
     }
     
     // then display the results
@@ -435,8 +457,8 @@ void sync_execute_frames(const std::string& server, const std::string& path,
     for (int i = 0; i < maxnum; ++i) {
         boost::asio::io_service io_service;
         client *pc = new client(io_service, server, path, binaryImgStr);
-        io_service.run();
         std::cout << "launch lambda: " << i << std::endl;
+        io_service.run();
         // pc->check_finished();
         std::cout << "lambda " << i << " finished" << std::endl;
         std::string result = parse_result(pc->resultss.str());
