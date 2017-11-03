@@ -398,6 +398,7 @@ void async_execute_frames(const std::string& server, const std::string& path,
     }
     
     io_service.run(); // this is a blocking operation. Wait all finished.
+    io_service.reset();
 
     // then sync wait for results
     for (int i = 0; i < maxnum; ++i) {
@@ -416,13 +417,13 @@ void async_execute_frames(const std::string& server, const std::string& path,
             delete frames[i];
             frames[i] = NULL;
             client *pc;
-            boost::asio::io_service back_io_service;
             if (i < maxnum / 2) {
-                pc = new client(back_io_service, server, path, binaryImgStr);
+                pc = new client(io_service, server, path, binaryImgStr);
             } else {
-                pc = new client(back_io_service, server, path, binaryImgStr2);
+                pc = new client(io_service, server, path, binaryImgStr2);
             }
-            back_io_service.run();
+            io_service.run();
+            io_service.reset();
             std::cout << "retry finished" << std::endl;
             if (pc->resultss.str().size() > 0) {
                 result = parse_result(pc->resultss.str());
