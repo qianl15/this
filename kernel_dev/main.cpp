@@ -73,11 +73,11 @@ public:
                                             boost::asio::placeholders::iterator));
     }
 
-    void check_finished() {
-        if (!finished) {
-            std::cout << "something wrong, lambda did not complete" << std::endl;
-        }
-    }
+    // void check_finished() {
+    //     if (!finished) {
+    //         std::cout << "something wrong, lambda did not complete" << std::endl;
+    //     }
+    // }
     ~client() {
        
     }
@@ -316,11 +316,7 @@ private:
         else if (err != boost::asio::error::eof)
         {
             std::cout << "Error: " << err << "\n";
-        } else {
-            // std::cout << std::endl;
-            resultss << std::endl;
-            finished = true;
-        }
+        } 
     }
 
     tcp::resolver resolver_;
@@ -330,7 +326,7 @@ private:
     boost::asio::ssl::stream<tcp::socket> socket_;
     boost::asio::streambuf request_;
     boost::asio::streambuf response_;
-    bool finished = false;
+    // bool finished = false;
 };
 
 void execute_frame(const std::string& server, const std::string& path, 
@@ -340,9 +336,9 @@ void execute_frame(const std::string& server, const std::string& path,
     client c(io_service, server, path, binaryImgStr);
     io_service.run();
 
-    c.check_finished();
-    // std::cout << "The response is: \n";
-    // std::cout << c.resultss.str();
+    // c.check_finished();
+    std::cout << "The response is: \n";
+    std::cout << c.resultss.str();
     json js = json::parse(c.resultss.str());
     std::string bodystr = js["body"];
     // std::cout << "\n The body content is: \n";
@@ -375,15 +371,22 @@ std::string parse_result(const std::string& resultstr) {
 
 // asynchronously execute a sequence of frames, duplicate the call
 void async_execute_frames(const std::string& server, const std::string& path, 
-                    const std::string& binaryImgStr, const int iters) {
-    int maxnum = iters;
+                    const std::string& binaryImgStr, 
+                    const std::string& binaryImgStr2, const int iters) {
+    int maxnum = iters * 2;
     std::vector<client *> frames;
     std::vector<std::string> results;
     boost::asio::io_service io_service;
 
     // async launch a vector of frames
     for (int i = 0; i < maxnum; ++i) {
-        client *pc = new client(io_service, server, path, binaryImgStr);
+        client *pc;
+        if (i < maxnum / 2) {
+            pc = new client(io_service, server, path, binaryImgStr);
+        } else {
+            pc = new client(io_service, server, path, binaryImgStr2);
+        }
+        
         frames.push_back(pc);
         std::cout << "launch lambda: " << i << std::endl;
     }
@@ -393,11 +396,18 @@ void async_execute_frames(const std::string& server, const std::string& path,
     // then sync wait for results
     for (int i = 0; i < maxnum; ++i) {
         // wait for the execution
-        frames[i]->check_finished();
+        // frames[i]->check_finished();
         std::cout << "lambda " << i << " finished" << std::endl;
         // std::cout << "result string : " << i << "\t";
         // std::cout << frames[i]->resultss.str() << std::endl;
-        std::string result = parse_result(frames[i]->resultss.str());
+        std::string result;
+        if (frames[i]->resultss.str().size() > 0) {
+            result = parse_result(frames[i]->resultss.str());
+        }
+        else {
+            result = "nullstring";
+            std::cout << "null string" << std::endl;
+        }
         
         results.push_back(result);
     }
@@ -427,7 +437,7 @@ void sync_execute_frames(const std::string& server, const std::string& path,
         client *pc = new client(io_service, server, path, binaryImgStr);
         io_service.run();
         std::cout << "launch lambda: " << i << std::endl;
-        pc->check_finished();
+        // pc->check_finished();
         std::cout << "lambda " << i << " finished" << std::endl;
         std::string result = parse_result(pc->resultss.str());
         results.push_back(result);
@@ -447,19 +457,26 @@ int main(int argc, char* argv[])
 {
     try
     {
-        if (argc != 5)
+        if (argc != 6)
         {
-            std::cout << "Usage: kernel_dev <server> <path> <fileContainingPostBody> <iters>\n";
+            std::cout << "Usage: kernel_dev <server> <path> <fileContainingPostBody> <file2> <iters>\n";
             std::cout << "Example:\n";
-            std::cout << "  async_client www.boost.org /LICENSE_1_0.txt 100\n";
+            std::cout << "  async_client www.boost.org /LICENSE_1_0.txt /file.txt 100\n";
             return 1;
         }
 
         std::ifstream b64File(argv[3]);
-        int iters = atoi(argv[4]);
+        std::ifstream b64File2(argv[4]);
+
+        int iters = atoi(argv[5]);
         std::stringstream b64ImgStream;
+        std::stringstream b64ImgStream2;
+
         b64ImgStream << b64File.rdbuf();
+        b64ImgStream2 << b64File2.rdbuf();
+
         std::string binaryImgStr = b64ImgStream.str();
+        std::string binaryImgStr2 = b64ImgStream2.str();
         //client c(io_service, "www.deelay.me", "/1000/hmpg.net");
 
         struct timeval start, stop;
@@ -468,26 +485,31 @@ int main(int argc, char* argv[])
         std::cout << "single run: \n";
         gettimeofday(&start, NULL);
         execute_frame(argv[1], argv[2], binaryImgStr);
+        execute_frame(argv[1], argv[2], binaryImgStr2);
         gettimeofday(&stop, NULL);
         duration = (stop.tv_sec - start.tv_sec) * 1000.0 +
                    (stop.tv_usec - start.tv_usec) / 1000.0;
         std::cout << "single run time: " << duration << " ms\n";
 
+        std::cout << "\nsynchronous multiple runs: "<< iters << " times \n";
+        gettimeofday(&start, NULL);
+        sync_execute_frames(argv[1], argv[2], binaryImgStr, iters);
+        sync_execute_frames(argv[1], argv[2], binaryImgStr2, iters);
+        gettimeofday(&stop, NULL);
+        duration = (stop.tv_sec - start.tv_sec) * 1000.0 +
+                   (stop.tv_usec - start.tv_usec) / 1000.0;
+        std::cout << "Sync execution run time: " << duration << " ms\n";
+
         std::cout << "\nasynchronous multiple runs: " << iters << " times \n";
         gettimeofday(&start, NULL);
-        async_execute_frames(argv[1], argv[2], binaryImgStr, iters);
+        async_execute_frames(argv[1], argv[2], binaryImgStr, 
+                             binaryImgStr2, iters);
         gettimeofday(&stop, NULL);
         duration = (stop.tv_sec - start.tv_sec) * 1000.0 +
                    (stop.tv_usec - start.tv_usec) / 1000.0;
         std::cout << "Async execution run time: " << duration << " ms\n";
 
-        std::cout << "\nsynchronous multiple runs: "<< iters << " times \n";
-        gettimeofday(&start, NULL);
-        sync_execute_frames(argv[1], argv[2], binaryImgStr, iters);
-        gettimeofday(&stop, NULL);
-        duration = (stop.tv_sec - start.tv_sec) * 1000.0 +
-                   (stop.tv_usec - start.tv_usec) / 1000.0;
-        std::cout << "Sync execution run time: " << duration << " ms\n";
+        
     }
     catch (std::exception& e)
     {
