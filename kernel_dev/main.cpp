@@ -398,6 +398,7 @@ void async_execute_frames(const std::string& server, const std::string& path,
     }
     
     io_service.run(); // this is a blocking operation. Wait all finished.
+    io_service.reset();
 
     // then sync wait for results
     for (int i = 0; i < maxnum; ++i) {
@@ -412,16 +413,17 @@ void async_execute_frames(const std::string& server, const std::string& path,
             results.push_back(result);
         }
         else {
-            std::cout << "null string, retry" << std::endl;
+            std::cout << "error happened, retry" << std::endl;
             delete frames[i];
+            frames[i] = NULL;
             client *pc;
             if (i < maxnum / 2) {
                 pc = new client(io_service, server, path, binaryImgStr);
             } else {
                 pc = new client(io_service, server, path, binaryImgStr2);
             }
-            frames[i] = pc;
             io_service.run();
+            io_service.reset();
             std::cout << "retry finished" << std::endl;
             if (pc->resultss.str().size() > 0) {
                 result = parse_result(pc->resultss.str());
@@ -429,6 +431,8 @@ void async_execute_frames(const std::string& server, const std::string& path,
             } else {
                 results.push_back("nullstring");
             }
+            delete pc;
+            pc = NULL;
         }
         
         
@@ -441,7 +445,8 @@ void async_execute_frames(const std::string& server, const std::string& path,
     }
 
     for (int i = 0; i < maxnum; ++i) {
-        delete frames[i];
+        if (frames[i] != NULL)
+            delete frames[i];
         frames[i] = NULL;
     }
     return;
