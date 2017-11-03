@@ -380,6 +380,7 @@ void async_execute_frames(const std::string& server, const std::string& path,
     std::vector<client *> frames;
     std::vector<std::string> results;
     boost::asio::io_service io_service;
+    int err_cnt = 0;
 
     // async launch a vector of frames
     for (int i = 0; i < maxnum; ++i) {
@@ -414,6 +415,7 @@ void async_execute_frames(const std::string& server, const std::string& path,
         }
         else {
             std::cout << "error happened, retry" << std::endl;
+            err_cnt++;
             delete frames[i];
             frames[i] = NULL;
             client *pc;
@@ -444,6 +446,7 @@ void async_execute_frames(const std::string& server, const std::string& path,
         std::cout << results[i] << std::endl;
     }
 
+    std::cout << "Error rate is: " << (double)err_cnt / maxnum << std::endl;
     for (int i = 0; i < maxnum; ++i) {
         if (frames[i] != NULL)
             delete frames[i];
@@ -498,6 +501,8 @@ int main(int argc, char* argv[])
         int iters = atoi(argv[5]);
         std::stringstream b64ImgStream;
         std::stringstream b64ImgStream2;
+
+        assert(iters > 0);
 
         b64ImgStream << b64File.rdbuf();
         b64ImgStream2 << b64File2.rdbuf();
