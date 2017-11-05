@@ -88,7 +88,7 @@ def test_mxnet_lambda(server="0.0.0.0", path="/hello", batch = 1, num = 3,
     for (frame_index, frame_classes) in video_classes:
       assert len(frame_classes) == 1
       assert frame_classes[0].shape[0] == 1
-      # print(frame_classes[0])
+      print(frame_classes[0])
       num_rows += 1
     assert num_rows == db.table('test_mxnet_raw').num_rows()
 

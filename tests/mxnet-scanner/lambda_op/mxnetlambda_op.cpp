@@ -310,6 +310,21 @@ private:
     boost::asio::streambuf response_;
 };
 
+std::string parse_result(const std::string& resultstr) {
+
+    json js = json::parse(resultstr);
+    std::string bodystr = js["body"];
+    // std::cout << "\n The body content is: \n";
+    // std::cout << bodystr << std::endl;
+
+    json bodyjs = json::parse(bodystr);
+    // std::cout << "\nHighest possible class is: ";
+    // std::cout << bodyjs["0"] << "\n";
+    json objs = bodyjs["0"];
+    std::string ret_class = objs.begin().key();
+    // std::cout << ret_class << "\n";
+    return ret_class;
+}
 
 class MxnetLambdaKernel : public scanner::BatchedKernel {
  public:
@@ -330,29 +345,90 @@ class MxnetLambdaKernel : public scanner::BatchedKernel {
   void execute(const scanner::BatchedColumns& input_columns,
                scanner::BatchedColumns& output_columns) override {
     auto& frame_column = input_columns[0];
+
+    std::vector<int> encode_params;
+    encode_params.push_back(CV_IMWRITE_JPEG_QUALITY);
+    encode_params.push_back(100);
     int input_count = num_rows(frame_column);
 
     size_t class_size = sizeof(int);
-    // printf("class size: %lu\n", class_size);
     u8* output_block =
         scanner::new_block_buffer(device_, class_size * input_count, input_count);
 
+
+    std::vector<client *> lambda_frames;
+    boost::asio::io_service io_service;
+    std::vector<std::string> str_encodes;
+
     for (int i = 0; i < input_count; ++i) {
       // Get a frame from the batch of input frames
+
+      // First, do frame encoding, transform to jpg
       const scanner::Frame* frame = frame_column[i].as_const_frame();
-      cv::Mat input = scanner::frame_to_mat(frame);
+      cv::Mat img = scanner::frame_to_mat(frame);
+      std::vector<u8> buf;
+      cv::Mat recolored;
+      cv::cvtColor(img, recolored, CV_RGB2BGR);
+      bool success = cv::imencode(".jpg", recolored, buf, encode_params);
+      if(!success) {
+        std::cout << "Failed to encode image" << std::endl;
+        exit(1);
+      }
+      // size_t orig_size = img.total() * img.elemSize();
+      // printf("compression: origin: %lu, jpg: %lu, rate: %lf\n", 
+      //   orig_size, buf.size(), (double)buf.size() / orig_size);
 
-      // Allocate a frame for the resized output frame
-      // scanner::Frame* resized_frame =
-      //   scanner::new_frame(scanner::CPU_DEVICE, output_frame_info);
-      // cv::Mat output = scanner::frame_to_mat(resized_frame);
+      // convert to binary string!
+      std::string str_encode(buf.begin(), buf.end()); 
+      str_encodes.push_back(str_encode);
 
-      // cv::resize(input, output, cv::Size(width_, height_));
+      // Start to asynchronously launch lambdas!
+      client *pc;
+      pc = new client(io_service, server_, path_, str_encode);
+      io_service.poll(); // run the ready handlers.
+      lambda_frames.push_back(pc);
+      std::cout << "launch lambda: " << i << std::endl;
+    }
+
+    io_service.run();
+    io_service.reset();
+
+    for (int i = 0; i < input_count; ++i) {
+      std::cout << "lambda " << i << " finished" << std::endl;
+      int result_class;
+      std::string result;
+        if (lambda_frames[i]->resultss.str().size() > 0) {
+            result = parse_result(lambda_frames[i]->resultss.str());
+            result_class = std::stoi(result);
+        }
+        else {
+            std::cout << "error happened, retry" << std::endl;
+            // err_cnt++;
+            delete lambda_frames[i];
+            lambda_frames[i] = NULL;
+            client *pc = new client(io_service, server_, path_, str_encodes[i]);
+            io_service.run();
+            io_service.reset();
+            std::cout << "retry finished" << std::endl;
+            if (pc->resultss.str().size() > 0) {
+                result = parse_result(pc->resultss.str());
+                result_class = std::stoi(result);
+            } else {
+                result_class = 0;
+            }
+            delete pc;
+            pc = NULL;
+        }
+
       u8* output_buf = output_block + i * class_size;
       // *((int *)output_buf) = i;
-      std::memcpy(output_buf, &i, class_size);
+      std::memcpy(output_buf, &result_class, class_size);
       // printf("%d\n", *((int *)output_buf));
       scanner::insert_element(output_columns[0], output_buf, class_size);
+      if (lambda_frames[i] != NULL) {
+        delete lambda_frames[i];
+      }
+      lambda_frames[i] = NULL;
     }
   }
 

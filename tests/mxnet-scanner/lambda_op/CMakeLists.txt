@@ -47,7 +47,7 @@ build_op(
 
 # The library specified in build_op is a normal CMake target, so you can use all
 # the normal CMake functions with it.
-find_package(OpenCV REQUIRED COMPONENTS core imgproc)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui xfeatures2d)
 include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS} "."
         "${Boost_INCLUDE_DIRS}"
         "${OPENSSL_INCLUDE_DIR}")
