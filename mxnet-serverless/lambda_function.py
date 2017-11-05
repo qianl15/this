@@ -55,7 +55,7 @@ def load_model(s_fname, p_fname):
             aux_params[name] = v
     return symbol, arg_params, aux_params
 
-def predict(b64Img, mod, synsets):
+def predict(b64Img, mod, synsets=None):
     '''
     predict labels for a given image
     '''
@@ -94,16 +94,26 @@ def predict(b64Img, mod, synsets):
     prob = mod.get_outputs()[0].asnumpy()
     prob = np.squeeze(prob)
     a = np.argsort(prob)[::-1]
-    out = '{"0" : {"%s" : "%s"}' %(synsets[a[0]], prob[a[0]]) 
+    
+    # out = '{"0" : {"%s" : "%s"}' %(synsets[a[0]], prob[a[0]]) 
+    # cnt = 0;
+    # for i in a[1:5]:
+    #     cnt += 1;
+    #     out += ', "%d" : {"%s" : "%s"}' %(cnt, synsets[i], prob[i])
+    # out += "}"
+
+    # just return the index, not the synset!
+    out = '{"0" : {"%s" : "%s"}' %(a[0], prob[a[0]]) 
     cnt = 0;
     for i in a[1:5]:
         cnt += 1;
-        out += ', "%d" : {"%s" : "%s"}' %(cnt, synsets[i], prob[i])
+        out += ', "%d" : {"%s" : "%s"}' %(cnt, i, prob[i])
     out += "}"
+
     return out
 
-with open('synset.txt', 'r') as f:
-    synsets = [l.rstrip() for l in f]
+# with open('synset.txt', 'r') as f:
+#     synsets = [l.rstrip() for l in f]
 
 def lambda_handler(event, context):
 
@@ -128,8 +138,9 @@ def lambda_handler(event, context):
     mod = mx.mod.Module(symbol=sym, label_names=None)
     mod.bind(for_training=False, data_shapes=[('data', (1,3,224,224))], label_shapes=mod._label_shapes)
     mod.set_params(arg_params, aux_params, allow_missing=True)
-    labels = predict(b64Img, mod, synsets)
-    
+    # labels = predict(b64Img, mod, synsets)
+    labels = predict(b64Img, mod)
+
     out = {
             "headers": {
                 "content-type": "application/json",
