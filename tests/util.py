@@ -45,6 +45,8 @@ def download_video(num = 1, fm_num = 1):
         ydl.download(["https://www.youtube.com/watch?v=79DijItQXMM"])
       elif num == 2:
         ydl.download(["https://www.youtube.com/watch?v=cPAbx5kgCJo"])
+      elif num == 3:
+        ydl.download(["https://www.youtube.com/watch?v=xDMP3i36naA"])
       else:
         print('invalid option for video: choose 1 or 2')
         exit()
