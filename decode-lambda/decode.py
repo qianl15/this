@@ -99,6 +99,7 @@ def upload_output_to_s3(bucketName, filePrefix):
 
         result = pool.apply_async(upload_file, 
             args=(localFilePath, uploadFileName, fileSize))
+        results.append(result)
 
         count += 1
         totalSize += fileSize
