@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 import boto3
+import botocore
 import hashlib
 import os
 import shutil
 import subprocess
-from threading import Thread, Semaphore
+from multiprocessing.pool import ThreadPool
+from threading import Semaphore
 import urllib
 
 TEMP_OUTPUT_DIR = '/tmp/output'
@@ -68,33 +70,46 @@ def list_output_files():
 
 def upload_output_to_s3(bucketName, filePrefix):
     print 'Uploading files to s3: %s' % bucketName
-    s3 = boto3.client('s3')
+    s3 = boto3.client('s3', config=botocore.client.Config(
+        max_pool_connections=MAX_PARALLEL_UPLOADS))
+
     count = 0
     totalSize = 0
-    threads = []
+    results = []
+
+    pool = ThreadPool(MAX_PARALLEL_UPLOADS)
     sema = Semaphore(MAX_PARALLEL_UPLOADS)
 
-    def upload_file_to_s3(localFilePath, uploadFileName):
+    def upload_file(localFilePath, uploadFileName, fileSize):
+
+        def check_s3_progress(bytesSent):
+            if bytesSent == fileSize:
+                print 'Done: %s' % localFilePath
+                sema.release()
+
+        sema.acquire()
         print 'Start: %s [%dKB]' % (localFilePath, fileSize >> 10)
-        s3.upload_file(localFilePath, bucketName, uploadFileName)
-        print 'Done: %s' % localFilePath
-        sema.release()
+        s3.upload_file(localFilePath, bucketName, uploadFileName,
+            Callback=check_s3_progress)
 
     for fileName in list_output_files():
         localFilePath = os.path.join(TEMP_OUTPUT_DIR, fileName)
-        fileSize = os.path.getsize(localFilePath)
         uploadFileName = os.path.join(filePrefix, fileName)
+        fileSize = os.path.getsize(localFilePath)
 
-        sema.acquire()
-        thread = Thread(target=upload_file_to_s3, args=(localFilePath, uploadFileName))
-        thread.start()
-        threads.append(thread)
+        result = pool.apply_async(upload_file, 
+            args=(localFilePath, uploadFileName, fileSize))
 
         count += 1
         totalSize += fileSize
 
-    for thread in threads:
-        thread.join()
+    # block until all threads are done
+    for result in results:
+        result.get()
+
+    # block until all uploads are finished
+    for _ in xrange(MAX_PARALLEL_UPLOADS):
+        sema.acquire()
 
     print 'Uploaded %d files to S3 [total=%dKB]' % (count, totalSize >> 10)
     return (count, totalSize)
@@ -190,6 +205,7 @@ def handler(event, context):
 
 
 if __name__ == '__main__':
+    # TODO: probably want to be able to take files from S3 too
     event = {
         'videoUrl': 'http://web.stanford.edu/~jamesh93/video/480p.avi',
         'outputBucket': 'vass-video-samples',
