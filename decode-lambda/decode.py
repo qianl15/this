@@ -1,9 +1,11 @@
+#!/usr/bin/env python
 
 import boto3
 import hashlib
 import os
 import shutil
 import subprocess
+from threading import Thread, Semaphore
 import urllib
 
 TEMP_OUTPUT_DIR = '/tmp/output'
@@ -12,7 +14,7 @@ INPUT_FILE_PATH = os.path.join('/tmp', 'input.mp4')
 
 FFMPEG_PATH = '/tmp/ffmpeg'
 shutil.copyfile('ffmpeg', FFMPEG_PATH)
-os.chmod(FFMPEG_PATH, 755)
+os.chmod(FFMPEG_PATH, 0o0755)
 
 MIN_DECODE_QUALITY = 2
 MAX_DECODE_QUALITY = 31
@@ -21,8 +23,9 @@ DEFAULT_DECODE_QUALITY = 5
 DEFAULT_DECODE_FPS = 24
 DEFAULT_LOG_LEVEL = 'warning'
 
-OUTPUT_FILE_EXT = 'jpg'
+MAX_PARALLEL_UPLOADS = 20
 
+OUTPUT_FILE_EXT = 'jpg'
 
 def get_md5(filePath):
     hash_md5 = hashlib.md5()
@@ -68,15 +71,31 @@ def upload_output_to_s3(bucketName, filePrefix):
     s3 = boto3.client('s3')
     count = 0
     totalSize = 0
+    threads = []
+    sema = Semaphore(MAX_PARALLEL_UPLOADS)
+
+    def upload_file_to_s3(localFilePath, uploadFileName):
+        print 'Start: %s [%dKB]' % (localFilePath, fileSize >> 10)
+        s3.upload_file(localFilePath, bucketName, uploadFileName)
+        print 'Done: %s' % localFilePath
+        sema.release()
+
     for fileName in list_output_files():
         localFilePath = os.path.join(TEMP_OUTPUT_DIR, fileName)
         fileSize = os.path.getsize(localFilePath)
         uploadFileName = os.path.join(filePrefix, fileName)
-        print 'Start: %s [%dKB]' % (fileName, fileSize >> 10)
-        s3.upload_file(fileName, bucketName, uploadFileName)
-        print 'Done: %s' % fileName
+
+        sema.acquire()
+        thread = Thread(target=upload_file_to_s3, args=(localFilePath, uploadFileName))
+        thread.start()
+        threads.append(thread)
+
         count += 1
         totalSize += fileSize
+
+    for thread in threads:
+        thread.join()
+
     print 'Uploaded %d files to S3 [total=%dKB]' % (count, totalSize >> 10)
     return (count, totalSize)
 
@@ -139,10 +158,12 @@ def handler(event, context):
         raise Exception('%s does not exist' % INPUT_FILE_PATH)
     else:
         inputSize = os.path.getsize(INPUT_FILE_PATH)
+        os.chmod(INPUT_FILE_PATH, 0o0755)
         print ' [%dKB] %s' % (inputSize >> 10, INPUT_FILE_PATH)
         print ' [md5] %s' % get_md5(INPUT_FILE_PATH)
 
     os.mkdir(TEMP_OUTPUT_DIR)
+    assert(os.path.exists(TEMP_OUTPUT_DIR))
     try:
         try:
             if not convert_video_to_jpegs(decodeFps, decodeQuality, logLevel):
@@ -161,12 +182,15 @@ def handler(event, context):
     return {
         'status': 'OK',
         'fileCount': fileCount,
-        'totalSize': totalSize 
+        'totalSize': totalSize
     }
 
 
 if __name__ == '__main__':
     event = {
-        'videoUrl': 'http://web.stanford.edu/~jamesh93/video/480p.mp4'
+        'videoUrl': 'http://web.stanford.edu/~jamesh93/video/480p.avi',
+        'outputBucket': 'vass-video-samples',
+        'outputPrefix': 'jpeg-test',
+        'decodeFps': 1
     }
     handler(event, {})
