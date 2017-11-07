@@ -180,9 +180,12 @@ def handler(event, context):
         shutil.rmtree(TEMP_OUTPUT_DIR)
 
     return {
-        'status': 'OK',
-        'fileCount': fileCount,
-        'totalSize': totalSize
+        'statusCode': 200,
+        'body': {
+            'status': 'OK',
+            'fileCount': fileCount,
+            'totalSize': totalSize
+        }
     }
 
 
