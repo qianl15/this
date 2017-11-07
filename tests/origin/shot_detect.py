@@ -40,8 +40,11 @@ def compute_shot_boundaries(hists):
   return boundaries
 
 def main(num = 1, fm_num = 1):
-  
-  movie_path = util.download_video(num, fm_num)
+  if num > 3:
+    movie_path = util.download_video2('http://web.stanford.edu/~jamesh93/video/wild480p.mkv')
+  else:
+    movie_path = util.download_video1(num, fm_num)
+
   print('Detecting shots in movie {}'.format(movie_path))
   movie_name = 'shot_detect'
 

@@ -39,7 +39,11 @@ def std_var(arr):
 # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
 # By default, we download the first video with the lowest quality
 def test_histogram(n = 1, num = 1, fm_num = 1, out_dir = './'):
-  test_video_path = util.download_video(num, fm_num)
+  if num > 3:
+    test_video_path = util.download_video2('http://web.stanford.edu/~jamesh93/video/wild480p.mkv')
+  else:
+    test_video_path = util.download_video1(num, fm_num)
+  
   print('Total iterations: {:d}, #{:d} video, #{:d} format, outdir: {}'.format(n, num, fm_num, out_dir))
   outfile_name = out_dir + 'output_hist_{}_{}.out'.format(num, fm_num)
   f = open(outfile_name, 'w')

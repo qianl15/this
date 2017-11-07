@@ -9,15 +9,22 @@
 
 import os.path
 from subprocess import check_call as run
-
+import urllib
 try:
   import youtube_dl
 except ImportError:
   print('You need to install youtube-dl to run this. Try running:\npip install youtube-dl')
   exit()
 
+def get_md5(filePath):
+  hash_md5 = hashlib.md5()
+  with open(filePath, 'rb') as f:
+    for chunk in iter(lambda: f.read(4096), b''):
+      hash_md5.update(chunk)
+  return hash_md5.hexdigest()
+
 # default: download the lowest quality of the first video
-def download_video(num = 1, fm_num = 1):
+def download_video1(num = 1, fm_num = 1):
    # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
   if fm_num == 1:
     format = '134'
@@ -48,8 +55,25 @@ def download_video(num = 1, fm_num = 1):
       elif num == 3:
         ydl.download(["https://www.youtube.com/watch?v=xDMP3i36naA"])
       else:
-        print('invalid option for video: choose 1 or 2')
+        print('invalid option for video: choose 1 / 2 / 3')
         exit()
+  return VID_PATH
+
+def download_video2(videoUrl = ''):
+  VID_PATH = "/tmp/example.mkv"
+
+  if not os.path.isfile(VID_PATH):
+    print 'Downloading file: %s' % videoUrl
+
+    urllib.urlretrieve(videoUrl, VID_PATH)
+    print 'Download complete'
+    if not os.path.exists(VID_PATH):
+      raise Exception('%s does not exist' % VID_PATH)
+    else:
+      inputSize = os.path.getsize(VID_PATH)
+      os.chmod(VID_PATH, 0o0755)
+      print ' [%dKB] %s' % (inputSize >> 10, VID_PATH)
+      print ' [md5] %s' % get_md5(VID_PATH)
   return VID_PATH
 
 def have_gpu():
