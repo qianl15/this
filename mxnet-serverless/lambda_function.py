@@ -117,8 +117,8 @@ def predict(b64Img, mod, synsets=None):
 
 def lambda_handler(event, context):
 
-    print("Event is :")
-    print(event)
+    # print("Event is :")
+    # print(event)
     b64Img = ''
     try:
         # API Gateway GET method
@@ -127,8 +127,8 @@ def lambda_handler(event, context):
         # API Gateway POST method
         elif event['httpMethod'] == 'POST':
             data = json.loads(event['body'])
-            print("POST method, its data is:")
-            print(data['b64Img'])
+            # print("POST method, its data is:")
+            # print(data['b64Img'])
             b64Img = data['b64Img']
     except KeyError:
         # direct invocation
