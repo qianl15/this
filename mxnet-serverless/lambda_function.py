@@ -8,7 +8,7 @@ version: 0.2
 import os
 import boto3
 import json
-import tempfile
+# import tempfile
 import urllib2 
 from urllib import urlretrieve
 
@@ -19,20 +19,24 @@ from PIL import Image
 from io import BytesIO
 import base64
 from collections import namedtuple
+import os.path
 Batch = namedtuple('Batch', ['data'])
 
 f_params = 'resnet-18-0000.params'
 f_symbol = 'resnet-18-symbol.json'
     
 #params
-f_params_file = tempfile.NamedTemporaryFile()
-urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file.name)
-f_params_file.flush()
+
+f_params_file = '/tmp/' + f_params
+if not os.path.isfile(f_params_file):
+    urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file.name)
+    f_params_file.flush()
 
 #symbol
-f_symbol_file = tempfile.NamedTemporaryFile()
-urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file.name)
-f_symbol_file.flush()
+f_symbol_file = 'tmp' + f_symbol
+if not os.path.isfile(f_symbol_file):
+    urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file.name)
+    f_symbol_file.flush()
 
 def load_model(s_fname, p_fname):
     """
