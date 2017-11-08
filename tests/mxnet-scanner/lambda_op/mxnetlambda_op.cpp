@@ -312,24 +312,31 @@ private:
 
 std::string parse_result(const std::string& resultstr) {
 
-    if (resultstr.empty()) {
-      return "-1";
-    }
-    json js = json::parse(resultstr);
-    std::string bodystr = js["body"];
-    // std::cout << "\n The body content is: \n";
-    // std::cout << bodystr << std::endl;
+    try {
 
-    if (!bodystr.empty()) {
-      json bodyjs = json::parse(bodystr);
-      // std::cout << "\nHighest possible class is: ";
-      // std::cout << bodyjs["0"] << "\n";
-      json objs = bodyjs["0"];
-      std::string ret_class = objs.begin().key();
-      // std::cout << ret_class << "\n";
-      return ret_class;
+        if (resultstr.empty()) {
+          return "-1";
+        }
+        json js = json::parse(resultstr);
+        std::string bodystr = js["body"];
+        // std::cout << "\n The body content is: \n";
+        // std::cout << bodystr << std::endl;
+
+        if (!bodystr.empty()) {
+          json bodyjs = json::parse(bodystr);
+          // std::cout << "\nHighest possible class is: ";
+          // std::cout << bodyjs["0"] << "\n";
+          json objs = bodyjs["0"];
+          std::string ret_class = objs.begin().key();
+          // std::cout << ret_class << "\n";
+          return ret_class;
+        }
+        std::cout << "a null string!" << std::endl;
     }
-    std::cout << "a null string!" << std::endl;
+    catch (std::exception& e)
+    {
+        std::cout << "Exception: " << e.what() << "\n";
+    }
     return "-1";
  }
 
