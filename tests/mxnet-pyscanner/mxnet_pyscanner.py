@@ -94,7 +94,7 @@ def test_pymxnet(num = 3, fm_num = 1, out_dir = './'):
       assert frame_classes[0].shape[0] == 1
       print(frame_classes[0])
       num_rows += 1
-    assert num_rows == db.table('test_mxnet_raw').num_rows()
+    assert num_rows == db.table('test_pymxnet_raw').num_rows()
 
     print(db.summarize())
 
