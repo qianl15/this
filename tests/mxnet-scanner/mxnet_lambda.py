@@ -23,7 +23,11 @@ import math
 def test_mxnet_lambda(server="0.0.0.0", path="/hello", batch = 1, num = 3, 
                       fm_num = 1, out_dir = './'):
 
-  test_video_path = util.download_video(num, fm_num)
+  if num > 4:
+    test_video_path = util.download_video2('http://web/stanford.edu/~jamesh93/video/wild720p.mkv')
+  else:
+    test_video_path = util.download_video1(num, fm_num)
+  
   print('#{:d} video, #{:d} format, outdir: {}'.format(num, fm_num, out_dir))
   print('Lambda server: {}, Lambda path: {}'.format(server, path))
   if util.have_gpu():
@@ -79,6 +83,9 @@ def test_mxnet_lambda(server="0.0.0.0", path="/hello", batch = 1, num = 3,
     delta = stop - start
     print('Batch: {:d} MXNet Lambda time: {:.4f}s, {:.1f} fps\n'.format(
         batch, delta, input_table.num_rows() / delta))
+
+    output_table.profiler().write_trace(
+      out_dir + 'test_mxnet_{:d}_{:d}_{:d}.trace'.format(num, fm_num, batch))
 
     video_classes = output_table.load(['class'], parsers.classes)
 
