@@ -312,19 +312,26 @@ private:
 
 std::string parse_result(const std::string& resultstr) {
 
+    if (resultstr.empty()) {
+      return "-1";
+    }
     json js = json::parse(resultstr);
     std::string bodystr = js["body"];
     // std::cout << "\n The body content is: \n";
     // std::cout << bodystr << std::endl;
 
-    json bodyjs = json::parse(bodystr);
-    // std::cout << "\nHighest possible class is: ";
-    // std::cout << bodyjs["0"] << "\n";
-    json objs = bodyjs["0"];
-    std::string ret_class = objs.begin().key();
-    // std::cout << ret_class << "\n";
-    return ret_class;
-}
+    if (!bodystr.empty()) {
+      json bodyjs = json::parse(bodystr);
+      // std::cout << "\nHighest possible class is: ";
+      // std::cout << bodyjs["0"] << "\n";
+      json objs = bodyjs["0"];
+      std::string ret_class = objs.begin().key();
+      // std::cout << ret_class << "\n";
+      return ret_class;
+    }
+    std::cout << "a null string!" << std::endl;
+    return "-1";
+ }
 
 class MxnetLambdaKernel : public scanner::BatchedKernel {
  public:
@@ -397,7 +404,7 @@ class MxnetLambdaKernel : public scanner::BatchedKernel {
       std::cout << "lambda " << i << " finished" << std::endl;
       int result_class;
       std::string result;
-        if (lambda_frames[i]->resultss.str().size() > 0) {
+        if (!lambda_frames[i]->resultss.str().empty()) {
             result = parse_result(lambda_frames[i]->resultss.str());
             result_class = std::stoi(result);
         }
@@ -410,11 +417,11 @@ class MxnetLambdaKernel : public scanner::BatchedKernel {
             io_service.run();
             io_service.reset();
             std::cout << "retry finished" << std::endl;
-            if (pc->resultss.str().size() > 0) {
+            if (!pc->resultss.str().empty()) {
                 result = parse_result(pc->resultss.str());
                 result_class = std::stoi(result);
             } else {
-                result_class = 0;
+                result_class = -1;
             }
             delete pc;
             pc = NULL;
