@@ -114,7 +114,7 @@ class PyMxnetKernel(scannerpy.Kernel):
     mod.bind(for_training=False, data_shapes=[('data', (1,3,224,224))], label_shapes=mod._label_shapes)
     mod.set_params(arg_params, aux_params, allow_missing=True)
     label = self.predict(pil_im, mod)
-    print label
+    # print label
     return [struct.pack('=i', label)]
 
 KERNEL = PyMxnetKernel
