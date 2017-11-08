@@ -22,7 +22,7 @@ import math
 def test_pymxnet(num = 3, fm_num = 1, out_dir = './'):
 
   if num > 4:
-    test_video_path = util.download_video2('http://web.stanford.edu/~jamesh93/video/wild720p.mkv')
+    test_video_path = util.download_video2('http://web.stanford.edu/~jamesh93/video/wild480p.mkv')
   else:
     test_video_path = util.download_video1(num, fm_num)
 

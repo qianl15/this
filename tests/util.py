@@ -10,6 +10,7 @@
 import os.path
 from subprocess import check_call as run
 import urllib
+import hashlib
 try:
   import youtube_dl
 except ImportError:
