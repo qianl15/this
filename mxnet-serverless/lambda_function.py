@@ -30,13 +30,13 @@ f_symbol = 'resnet-18-symbol.json'
 f_params_file = '/tmp/' + f_params
 if not os.path.isfile(f_params_file):
     urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file)
-    f_params_file.flush()
+    # f_params_file.flush()
 
 #symbol
 f_symbol_file = '/tmp/' + f_symbol
 if not os.path.isfile(f_symbol_file):
     urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file)
-    f_symbol_file.flush()
+    # f_symbol_file.flush()
 
 def load_model(s_fname, p_fname):
     """
