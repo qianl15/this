@@ -33,7 +33,7 @@ if not os.path.isfile(f_params_file):
     f_params_file.flush()
 
 #symbol
-f_symbol_file = 'tmp' + f_symbol
+f_symbol_file = '/tmp/' + f_symbol
 if not os.path.isfile(f_symbol_file):
     urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file.name)
     f_symbol_file.flush()
