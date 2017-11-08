@@ -21,7 +21,7 @@ import math
 # By default, we download the third video with the lowest quality
 def test_pymxnet(num = 3, fm_num = 1, out_dir = './'):
 
-  if num > 3:
+  if num > 4:
     test_video_path = util.download_video2('http://web.stanford.edu/~jamesh93/video/wild720p.mkv')
   else:
     test_video_path = util.download_video1(num, fm_num)
@@ -79,7 +79,10 @@ def test_pymxnet(num = 3, fm_num = 1, out_dir = './'):
     stop = now()
     delta = stop - start
     print('Batch: {:d} Python MXNet time: {:.4f}s, {:.1f} fps\n'.format(
-        batch, delta, input_table.num_rows() / delta))
+        1, delta, input_table.num_rows() / delta))
+
+    output_table.profiler().write_trace(
+      out_dir + 'test_pymxnet_{:d}_{:d}.trace'.format(num, fm_num))
 
     video_classes = output_table.load(['class'], parsers.classes)
 

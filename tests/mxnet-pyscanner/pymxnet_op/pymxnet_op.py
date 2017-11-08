@@ -17,6 +17,7 @@ import json
 import tempfile
 import urllib2 
 from urllib import urlretrieve
+from timeit import default_timer as now
 
 import mxnet as mx
 import numpy as np
@@ -107,13 +108,21 @@ class PyMxnetKernel(scannerpy.Kernel):
     pil_im = Image.fromarray(input_columns[0])
     # width, height = pil_im.size
     # print('width {}, height {}'.format(width, height))
-    
+    start = now()
     sym, arg_params, aux_params = self.load_model(f_symbol_file.name, f_params_file.name)
 
     mod = mx.mod.Module(symbol=sym, label_names=None)
     mod.bind(for_training=False, data_shapes=[('data', (1,3,224,224))], label_shapes=mod._label_shapes)
     mod.set_params(arg_params, aux_params, allow_missing=True)
+    stop = now()
+    delta = stop - start
+    print('Time to load model: {:.4f}s'.format(delta))
+
+    start = now()
     label = self.predict(pil_im, mod)
+    stop = now()
+    delta = stop - start
+    print('Time to predict: {:.4f}s'.format(delta))
     # print label
     return [struct.pack('=i', label)]
 
