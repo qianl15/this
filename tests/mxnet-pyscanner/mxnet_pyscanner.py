@@ -109,11 +109,11 @@ if __name__ == '__main__':
 
   #params
   f_params_file = '/tmp/' + f_params
-  urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file)
+  urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
 
   #symbol
   f_symbol_file = '/tmp/' + f_symbol
-  urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file)
+  urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
 
   if (len(sys.argv) < 1) or (len(sys.argv) > 5):
     print('Usage: python mxnet_pyscanner.py <video_num> <video_resolution> <out_dir>');

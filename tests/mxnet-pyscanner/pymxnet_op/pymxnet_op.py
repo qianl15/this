@@ -8,15 +8,8 @@
 import scannerpy
 import struct
 import numpy as np
-import StringIO
 import time
-import sys
-import cv2
-import os
 import os.path
-import json
-import tempfile
-import urllib2 
 from urllib import urlretrieve
 from timeit import default_timer as now
 from io import BytesIO
@@ -26,7 +19,6 @@ import numpy as np
 
 from PIL import Image
 from io import BytesIO
-import base64
 from collections import namedtuple
 
 Batch = namedtuple('Batch', ['data'])
@@ -38,13 +30,15 @@ f_symbol = 'resnet-18-symbol.json'
 f_params_file = '/tmp/' + f_params
 if not os.path.isfile(f_params_file):
     print ("retrieving params")
-    urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file)
+    # urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file)
+    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
 
 #symbol
 f_symbol_file = '/tmp/' + f_symbol
 if not os.path.isfile(f_symbol_file):
     print ("retrieving symbols")
-    urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file)
+    # urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file)
+    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
 
 class PyMxnetKernel(scannerpy.Kernel):
   def __init__(self, config, protobufs):
