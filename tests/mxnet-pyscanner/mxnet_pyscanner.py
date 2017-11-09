@@ -15,6 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/..')
 import util
 from timeit import default_timer as now
 import math
+from urllib import urlretrieve
 
 # choose which video we wanted to download, and the format
 # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
@@ -102,6 +103,17 @@ if __name__ == '__main__':
   num = 1 # which video
   fm_num = 1 # which resolution
   out_dir = './' # which output directory
+
+  f_params = 'resnet-18-0000.params'
+  f_symbol = 'resnet-18-symbol.json'
+
+  #params
+  f_params_file = '/tmp/' + f_params
+  urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file)
+
+  #symbol
+  f_symbol_file = '/tmp/' + f_symbol
+  urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file)
 
   if (len(sys.argv) < 1) or (len(sys.argv) > 5):
     print('Usage: python mxnet_pyscanner.py <video_num> <video_resolution> <out_dir>');

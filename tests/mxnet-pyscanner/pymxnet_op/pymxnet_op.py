@@ -13,6 +13,7 @@ import time
 import sys
 import cv2
 import os
+import os.path
 import json
 import tempfile
 import urllib2 
@@ -33,14 +34,14 @@ f_params = 'resnet-18-0000.params'
 f_symbol = 'resnet-18-symbol.json'
 
 #params
-f_params_file = tempfile.NamedTemporaryFile()
-urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file.name)
-f_params_file.flush()
+f_params_file = '/tmp/' + f_params
+if not os.path.isfile(f_params_file):
+    urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file)
 
 #symbol
-f_symbol_file = tempfile.NamedTemporaryFile()
-urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file.name)
-f_symbol_file.flush()
+f_symbol_file = '/tmp/' + f_symbol
+if not os.path.isfile(f_symbol_file):
+    urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file)
 
 class PyMxnetKernel(scannerpy.Kernel):
   def __init__(self, config, protobufs):
@@ -109,7 +110,7 @@ class PyMxnetKernel(scannerpy.Kernel):
     # width, height = pil_im.size
     # print('width {}, height {}'.format(width, height))
     start = now()
-    sym, arg_params, aux_params = self.load_model(f_symbol_file.name, f_params_file.name)
+    sym, arg_params, aux_params = self.load_model(f_symbol_file, f_params_file)
 
     mod = mx.mod.Module(symbol=sym, label_names=None)
     mod.bind(for_training=False, data_shapes=[('data', (1,3,224,224))], label_shapes=mod._label_shapes)
