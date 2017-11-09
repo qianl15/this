@@ -5,6 +5,7 @@ import botocore
 import hashlib
 import os
 import shutil
+import struct 
 import subprocess
 from multiprocessing.pool import ThreadPool
 from threading import Semaphore
@@ -12,7 +13,7 @@ import urllib
 
 TEMP_OUTPUT_DIR = '/tmp/output'
 
-INPUT_FILE_PATH = os.path.join('/tmp', 'input.mp4')
+INPUT_FILE_PATH = os.path.join('/tmp', 'input')
 
 FFMPEG_PATH = '/tmp/ffmpeg'
 shutil.copyfile('ffmpeg', FFMPEG_PATH)
@@ -24,6 +25,9 @@ MAX_DECODE_QUALITY = 31
 DEFAULT_DECODE_QUALITY = 5
 DEFAULT_DECODE_FPS = 24
 DEFAULT_LOG_LEVEL = 'warning'
+
+DEFAULT_OUTPUT_BATCH_SIZE = 1
+DEFAULT_KEEP_OUTPUT = False
 
 MAX_PARALLEL_UPLOADS = 20
 
@@ -66,6 +70,43 @@ def list_output_files():
         x for x in os.listdir(TEMP_OUTPUT_DIR) if x.endswith(fileExt)
     ]
     return sorted(outputFiles)
+
+
+def many_files_to_one(inPaths, outPath):
+    with open(outPath, 'wb') as ofs:
+        for filePath in inPaths:
+            with open(filePath, 'rb') as ifs:
+                data = ifs.read()
+                dataLen = len(data)
+                fileName = os.path.basename(filePath)
+                ofs.write(struct.pack('I', len(fileName)))
+                ofs.write(fileName)
+                ofs.write(struct.pack('I', dataLen))
+                ofs.write(data)
+    print 'Wrote', outPath
+
+
+def combine_output_files(outputBatchSize):
+    def encode_batch(batch):
+        inputFilePaths = [
+            os.path.join(TEMP_OUTPUT_DIR, x) for x in batch
+        ]
+        name, ext = os.path.splitext(batch[0])
+        outputFilePath = os.path.join(
+            TEMP_OUTPUT_DIR, '%s+%d%s' % (name, len(batch), ext))
+        many_files_to_one(inputFilePaths, outputFilePath)
+        for filePath in inputFilePaths:
+            os.remove(filePath)
+
+    currentBatch = []
+    for fileName in list_output_files():
+        currentBatch.append(fileName)
+        if len(currentBatch) == outputBatchSize:
+            encode_batch(currentBatch)
+            currentBatch = []
+
+    if len(currentBatch) > 0: 
+        encode_batch(currentBatch)
 
 
 def upload_output_to_s3(bucketName, filePrefix):
@@ -166,6 +207,14 @@ def handler(event, context):
     else:
         print 'Warning: no output location specified'
 
+    outputBatchSize = DEFAULT_OUTPUT_BATCH_SIZE
+    if 'outputBatchSize' in event:
+        outputBatchSize = int(event['outputBatchSize'])
+
+    keepOutput = DEFAULT_KEEP_OUTPUT
+    if 'keepOutput' in event:
+        keepOutput = event['keepOutput'].lower() == 'true'
+
     print 'Downloading file: %s' % videoUrl
     urllib.urlretrieve(videoUrl, INPUT_FILE_PATH)
 
@@ -187,13 +236,17 @@ def handler(event, context):
         finally:
             os.remove(INPUT_FILE_PATH)
 
+        if outputBatchSize > 1:
+            combine_output_files(outputBatchSize)
+
         if outputBucket:
             fileCount, totalSize = upload_output_to_s3(
                 outputBucket, outputPrefix)
         else:
             fileCount, totalSize = list_output_directory()
     finally:
-        shutil.rmtree(TEMP_OUTPUT_DIR)
+        if not keepOutput:
+            shutil.rmtree(TEMP_OUTPUT_DIR)
 
     return {
         'statusCode': 200,
@@ -209,8 +262,10 @@ if __name__ == '__main__':
     # TODO: probably want to be able to take files from S3 too
     event = {
         'videoUrl': 'http://web.stanford.edu/~jamesh93/video/480p.avi',
-        'outputBucket': 'vass-video-samples',
-        'outputPrefix': 'jpeg-test',
-        'decodeFps': 1
+        # 'outputBucket': 'vass-video-samples',
+        # 'outputPrefix': 'jpeg-test',
+        'decodeFps': 30,
+        'outputBatchSize': 100,
+        'keepOutput': 'true'
     }
     handler(event, {})
