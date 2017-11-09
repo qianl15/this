@@ -19,6 +19,7 @@ import tempfile
 import urllib2 
 from urllib import urlretrieve
 from timeit import default_timer as now
+from io import BytesIO
 
 import mxnet as mx
 import numpy as np
@@ -36,11 +37,13 @@ f_symbol = 'resnet-18-symbol.json'
 #params
 f_params_file = '/tmp/' + f_params
 if not os.path.isfile(f_params_file):
+    print ("retrieving params")
     urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file)
 
 #symbol
 f_symbol_file = '/tmp/' + f_symbol
 if not os.path.isfile(f_symbol_file):
+    print ("retrieving symbols")
     urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file)
 
 class PyMxnetKernel(scannerpy.Kernel):
@@ -104,9 +107,18 @@ class PyMxnetKernel(scannerpy.Kernel):
 
     return out
 
+  def convertToJpeg(self, im):
+    with BytesIO() as f:
+      im.save(f, format='JPEG')
+
+      return f.getvalue()
+
   def execute(self, input_columns):
     # cv2_im = cv2.cvtColor(input_columns[0],cv2.COLOR_BGR2RGB)
     pil_im = Image.fromarray(input_columns[0])
+    jpeg_image = self.convertToJpeg(pil_im) # also convert to jpeg
+    img = Image.open(BytesIO(jpeg_image))
+
     # width, height = pil_im.size
     # print('width {}, height {}'.format(width, height))
     start = now()
@@ -120,7 +132,7 @@ class PyMxnetKernel(scannerpy.Kernel):
     print('Time to load model: {:.4f}s'.format(delta))
 
     start = now()
-    label = self.predict(pil_im, mod)
+    label = self.predict(img, mod)
     stop = now()
     delta = stop - start
     print('Time to predict: {:.4f}s'.format(delta))
