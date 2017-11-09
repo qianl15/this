@@ -251,7 +251,6 @@ def handler(event, context):
     return {
         'statusCode': 200,
         'body': {
-            'status': 'OK',
             'fileCount': fileCount,
             'totalSize': totalSize
         }
@@ -262,10 +261,10 @@ if __name__ == '__main__':
     # TODO: probably want to be able to take files from S3 too
     event = {
         'videoUrl': 'http://web.stanford.edu/~jamesh93/video/480p.avi',
-        # 'outputBucket': 'vass-video-samples',
-        # 'outputPrefix': 'jpeg-test',
+        'outputBucket': 'vass-video-samples',
+        'outputPrefix': 'jpeg-test',
         'decodeFps': 30,
         'outputBatchSize': 100,
-        'keepOutput': 'true'
+        # 'keepOutput': 'true'
     }
     handler(event, {})
