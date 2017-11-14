@@ -7,6 +7,7 @@ version: 0.2
 
 import os
 import boto3
+import botocore
 import json
 # import tempfile
 import urllib2 
@@ -24,22 +25,51 @@ Batch = namedtuple('Batch', ['data'])
 
 f_params = 'resnet-18-0000.params'
 f_symbol = 'resnet-18-symbol.json'
+LOCAL_IMG_PATH = os.path.join('/tmp', 'local.jpg')
     
 #params
 
 f_params_file = '/tmp/' + f_params
-#if not os.path.isfile(f_params_file):
-# urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file)
 urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
-    # f_params_file.flush()
 
 #symbol
 f_symbol_file = '/tmp/' + f_symbol
-#if not os.path.isfile(f_symbol_file):
-# urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file)
 urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
-    # f_symbol_file.flush()
 
+def ensure_clean_state():
+    if os.path.exists(LOCAL_IMG_PATH):
+        os.remove(LOCAL_IMG_PATH)
+
+def download_input_from_s3(bucketName, fileName):
+    print('Downloading file {:s} from s3: {:s}'.format(fileName, bucketName))
+    s3 = boto3.resource('s3')
+    try:
+        s3.Bucket(bucketName).download_file(fileName, LOCAL_IMG_PATH)
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            print("The object does not exist.")
+        else:
+            raise
+
+def one_file_to_many(inPath):
+    data = []
+    with open(inPath, 'rb') as ifs:
+        count = 0
+        while True:
+            chunk = ifs.read(4)
+            if chunk == '':
+                break
+            fileNameLen = struct.unpack('I', chunk)[0]
+            fileName = ifs.read(fileNameLen)
+            chunk = ifs.read(4)
+            if chunk == '':
+                raise Exception('Expected 4 bytes')
+            dataLen = struct.unpack('I', chunk)[0]
+            data.append(ifs.read(dataLen))
+            count += 1
+        print('Extracted {:d} files'.format(count))
+
+    
 def load_model(s_fname, p_fname):
     """
     Load model checkpoint from file.
@@ -96,18 +126,13 @@ def predict(b64Img, mod, synsets=None):
     img = img[np.newaxis, :] 
  
     # forward pass through the network
+
     mod.forward(Batch([mx.nd.array(img)]))
-    prob = mod.get_outputs()[0].asnumpy()
+    prob = mod.get_outputs()[0].asnumpy() # 0 means device 0? prob can be
+                                          # multiple batched values
     prob = np.squeeze(prob)
     a = np.argsort(prob)[::-1]
     
-    # out = '{"0" : {"%s" : "%s"}' %(synsets[a[0]], prob[a[0]]) 
-    # cnt = 0;
-    # for i in a[1:5]:
-    #     cnt += 1;
-    #     out += ', "%d" : {"%s" : "%s"}' %(cnt, synsets[i], prob[i])
-    # out += "}"
-
     # just return the index, not the synset!
     out = '{"0" : {"%s" : "%s"}' %(a[0], prob[a[0]]) 
     cnt = 0;
@@ -118,8 +143,6 @@ def predict(b64Img, mod, synsets=None):
 
     return out
 
-# with open('synset.txt', 'r') as f:
-#     synsets = [l.rstrip() for l in f]
 
 def lambda_handler(event, context):
 
@@ -142,7 +165,8 @@ def lambda_handler(event, context):
     
     sym, arg_params, aux_params = load_model(f_symbol_file, f_params_file)
     mod = mx.mod.Module(symbol=sym, label_names=None)
-    mod.bind(for_training=False, data_shapes=[('data', (1,3,224,224))], label_shapes=mod._label_shapes)
+    mod.bind(for_training=False, data_shapes=[('data', (1,3,224,224))],
+       label_shapes=mod._label_shapes)
     mod.set_params(arg_params, aux_params, allow_missing=True)
     # labels = predict(b64Img, mod, synsets)
     labels = predict(b64Img, mod)
@@ -156,3 +180,72 @@ def lambda_handler(event, context):
             "statusCode": 200
           }
     return out
+
+# fetch a batch of files from the S3 bucket
+# also support the batch mode predict in MXNet
+def lambda_batch_handler(event, context):
+    ensure_clean_state()
+    inputBucket = 'vass-video-samples2'
+    inputKey = 'batch-test/1901+100.jpg'
+    batchSize = 1 # the batch passed to MXNet
+    try:
+        # API Gateway GET method
+        if event['httpMethod'] == 'GET':
+            url = event['queryStringParameters']['url']
+        # API Gateway POST method
+        elif event['httpMethod'] == 'POST':
+            data = json.loads(event['body'])
+            if 'inputBucket' in data:
+                inputBucket = data['inputBucket']
+            else:
+                print('Warning: using default bucket')
+            if 'inputKey' in data:
+                inputKey = data['inputKey']
+            else:
+                print('Warning: using default input file')
+            if 'batchSize' in data:
+                batchSize = data['batchSize']
+            else:
+                print('Warning: using default batch_size = 1')
+    except KeyError:
+        # direct invocation
+        if 'inputBucket' in event:
+            inputBucket = event['inputBucket']
+        else:
+            print('Warning: using default bucket')
+        if 'inputKey' in event:
+            inputKey = event['inputKey']
+        else:
+            print('Warning: using default input file')
+        if 'batchSize' in event:
+            batchSize = event['batchSize']
+        else:
+            print('Warning: using default batch_size = 1')
+
+    download_input_from_s3(inputBucket, inputKey)
+    data = one_file_to_many(LOCAL_IMG_PATH)
+    count = len(data)
+    if (count % batchSize) != 0:
+        print('input files number {:d} cannot be divided by batch size \
+            {:d}'.format(count, batchSize))
+
+
+    out = {
+            "headers": {
+                "content-type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+                },
+            "body": "hello there! from batch",  
+            "statusCode": 200
+    }
+    return out
+
+
+# for local test
+if __name__ == '__main__':
+    event = {
+        'inputBucket': 'vass-video-samples2',
+        'inputKey': 'batch-test/1901+100.jpg',
+        'batchSize': 1
+    }
+    lambda_batch_handler(event, {})

@@ -64,6 +64,8 @@ custom:
 functions:
   hello:
     handler: lambda_function.lambda_handler
+  hellov2:
+    handler: lambda_function.lambda_batch_handler
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
