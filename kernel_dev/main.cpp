@@ -523,14 +523,14 @@ int main(int argc, char* argv[])
                    (stop.tv_usec - start.tv_usec) / 1000.0;
         std::cout << "single run time: " << duration << " ms\n";
 
-        std::cout << "\nsynchronous multiple runs: "<< iters << " times \n";
-        gettimeofday(&start, NULL);
-        sync_execute_frames(argv[1], argv[2], binaryImgStr, iters);
-        sync_execute_frames(argv[1], argv[2], binaryImgStr2, iters);
-        gettimeofday(&stop, NULL);
-        duration = (stop.tv_sec - start.tv_sec) * 1000.0 +
-                   (stop.tv_usec - start.tv_usec) / 1000.0;
-        std::cout << "Sync execution run time: " << duration << " ms\n";
+        // std::cout << "\nsynchronous multiple runs: "<< iters << " times \n";
+        // gettimeofday(&start, NULL);
+        // sync_execute_frames(argv[1], argv[2], binaryImgStr, iters);
+        // sync_execute_frames(argv[1], argv[2], binaryImgStr2, iters);
+        // gettimeofday(&stop, NULL);
+        // duration = (stop.tv_sec - start.tv_sec) * 1000.0 +
+        //            (stop.tv_usec - start.tv_usec) / 1000.0;
+        // std::cout << "Sync execution run time: " << duration << " ms\n";
 
         std::cout << "\nasynchronous multiple runs: " << iters << " times \n";
         gettimeofday(&start, NULL);
