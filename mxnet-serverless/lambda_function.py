@@ -12,6 +12,7 @@ import json
 # import tempfile
 import urllib2 
 from urllib import urlretrieve
+import struct
 
 import mxnet as mx
 import numpy as np
@@ -68,6 +69,7 @@ def one_file_to_many(inPath):
             data.append(ifs.read(dataLen))
             count += 1
         print('Extracted {:d} files'.format(count))
+    return data
 
     
 def load_model(s_fname, p_fname):
