@@ -145,6 +145,57 @@ def predict(b64Img, mod, synsets=None):
 
     return out
 
+def predict_batch(batch_size, data, mod):
+    '''
+    predict labels for a given batch of images
+    '''
+    data_size = len(data)
+    cnt = 0
+    new_width, new_height = 224, 224
+    out = "{"
+    while cnt < data_size:
+        # execute one batch
+        img_list = []
+        for frame in data[cnt:cnt+batch_size]:
+            img = Image.open(BytesIO(frame))
+            width, height = img.size   # Get dimensions
+            left = (width - new_width)/2
+            top = (height - new_height)/2
+            right = (width + new_width)/2
+            bottom = (height + new_height)/2
+
+            img = img.crop((left, top, right, bottom))
+            # convert to numpy.ndarray
+            sample = np.asarray(img)
+            # swap axes to make image from (224, 224, 3) to (3, 224, 224)
+            sample = np.swapaxes(sample, 0, 2)
+            img = np.swapaxes(sample, 1, 2)
+            img_list.append(img)
+
+        batch = mx.io.DataBatch([mx.nd.array(img_list)], [])
+        mod.forward(batch)
+        probs = mod.get_outputs()[0].asnumpy()
+        print probs.shape
+
+        cnt_local = cnt
+        # the output format is : first is the relative id of the frame
+        # then the second.first is the category (num), second.second is the
+        # probability / confidence of the category
+        # Be aware that this is different from previous version!
+        for prob in probs:
+            prob = np.squeeze(prob)
+            a = np.argsort(prob)[::-1]
+            if cnt_local == 0:
+                out += '"0" : {{"{}" : "{}"}}'.format(a[0], prob[a[0]])
+            else:
+                out += ', "{:d}" : {{"{}" : "{}"}}'.format(cnt_local, 
+                                                            a[0], prob[a[0]])
+            cnt_local += 1
+
+        cnt += batch_size
+
+    out += "}"
+    return out
 
 def lambda_handler(event, context):
 
@@ -228,16 +279,22 @@ def lambda_batch_handler(event, context):
     data = one_file_to_many(LOCAL_IMG_PATH)
     count = len(data)
     if (count % batchSize) != 0:
-        print('input files number {:d} cannot be divided by batch size \
-            {:d}'.format(count, batchSize))
+        print('input files number {:d} cannot be divided by '.format(count) +  
+            'batch size {:d}'.format(count, batchSize))
 
+    sym, arg_params, aux_params = load_model(f_symbol_file, f_params_file)
+    mod = mx.mod.Module(symbol=sym, label_names=None)
+    mod.bind(for_training=False, data_shapes=[('data', (batchSize,3,224,224))],
+            label_shapes=mod._label_shapes)
+    mod.set_params(arg_params, aux_params, allow_missing=True)
+    labels = predict_batch(batchSize, data, mod)
 
     out = {
             "headers": {
                 "content-type": "application/json",
                 "Access-Control-Allow-Origin": "*"
                 },
-            "body": "hello there! from batch",  
+            "body": labels,  
             "statusCode": 200
     }
     return out
@@ -250,4 +307,5 @@ if __name__ == '__main__':
         'inputKey': 'batch-test/1901+100.jpg',
         'batchSize': 1
     }
-    lambda_batch_handler(event, {})
+    out = lambda_batch_handler(event, {})
+    print out
