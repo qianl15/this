@@ -14,6 +14,7 @@ import urllib2
 from urllib import urlretrieve
 import struct
 import sys
+from timeit import default_timer as now
 
 import mxnet as mx
 import numpy as np
@@ -30,13 +31,15 @@ f_symbol = 'resnet-18-symbol.json'
 LOCAL_IMG_PATH = os.path.join('/tmp', 'local.jpg')
     
 #params
-
+start = now()
 f_params_file = '/tmp/' + f_params
 urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
 
 #symbol
 f_symbol_file = '/tmp/' + f_symbol
 urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
+end = now()
+print('Time to download MXNet model: {:.4f}'.format(end - start))
 
 def ensure_clean_state():
     if os.path.exists(LOCAL_IMG_PATH):
@@ -276,20 +279,35 @@ def lambda_batch_handler(event, context):
         else:
             print('Warning: using default batch_size = 1')
 
+    start = now()
     download_input_from_s3(inputBucket, inputKey)
+    end = now()
+    print('Time to download input file: {:.4f}'.format(end - start))
+
+    start = now()
     data = one_file_to_many(LOCAL_IMG_PATH)
+    end = now()
+    print('Time to extract file: {:.4f}'.format(end - start))
+
     count = len(data)
     if (count % batchSize) != 0:
         print('input files number {:d} cannot be divided by '.format(count) +  
             'batch size {:d}'.format(batchSize))
         exit()
 
+    start = now()
     sym, arg_params, aux_params = load_model(f_symbol_file, f_params_file)
     mod = mx.mod.Module(symbol=sym, label_names=None)
     mod.bind(for_training=False, data_shapes=[('data', (batchSize,3,224,224))],
             label_shapes=mod._label_shapes)
     mod.set_params(arg_params, aux_params, allow_missing=True)
+    end = now()
+    print('Time to prepare and load parameters: {:.4f}'.format(end - start))
+
+    start = now()
     labels = predict_batch(batchSize, data, mod)
+    end = now()
+    print('Time to predict the batch: {:.4f}'.format(end - start))
 
     out = {
             "headers": {
