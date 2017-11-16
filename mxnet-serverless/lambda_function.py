@@ -321,7 +321,7 @@ def lambda_batch_handler(event, context):
     end = now()
     print('Time to predict the {:d} batch: {:.4f} s'.format(batchSize, end -
        start))
-    timelist += '"predict" : %f,' % (end - start)
+    timelist += '"predict" : %f' % (end - start)
 
     timelist += "}"
     out = {
@@ -329,8 +329,8 @@ def lambda_batch_handler(event, context):
                 "content-type": "application/json",
                 "Access-Control-Allow-Origin": "*"
                 },
-            "body": labels,  
-            "times": timelist,
+            "body": timelist,  
+            #"times": timelist,
             "statusCode": 200
     }
     print timelist
