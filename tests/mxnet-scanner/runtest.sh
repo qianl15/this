@@ -3,11 +3,12 @@
 mkdir -p mxnet_results
 output_dir="./mxnet_results/"
 
-#batches=("50" "40" "30" "20" "10" "1")
-batches=("30" "20" "10" "1")
+batches=("50" "40" "30" "20" "10" "1")
+#batches=("30" "20" "10" "1")
+#batches=("50" "40")
 
 num=3
-fmnums=("1")
+fmnums=("1" "2" "3")
 
 for fmnum in ${fmnums[@]}; do
   for batch in ${batches[@]}; do

@@ -10,6 +10,7 @@ import subprocess
 from multiprocessing.pool import ThreadPool
 from threading import Semaphore
 import urllib
+from timeit import default_timer as now
 
 TEMP_OUTPUT_DIR = '/tmp/output'
 
@@ -260,11 +261,15 @@ def handler(event, context):
 if __name__ == '__main__':
     # TODO: probably want to be able to take files from S3 too
     event = {
-        'videoUrl': 'http://web.stanford.edu/~jamesh93/video/480p.avi',
-        'outputBucket': 'vass-video-samples',
-        'outputPrefix': 'jpeg-test',
+        'videoUrl': 'http://web.stanford.edu/~jamesh93/video/wild480p.mkv',
+        #'outputBucket': 'vass-video-samples',
+        #'outputPrefix': 'jpeg-test',
         'decodeFps': 30,
         'outputBatchSize': 100,
         # 'keepOutput': 'true'
     }
+    start = now()
     handler(event, {})
+    stop = now()
+    delta = stop - start
+    print('Time to decode is: {:.4f}s'.format(delta))

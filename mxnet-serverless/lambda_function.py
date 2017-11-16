@@ -13,6 +13,7 @@ import json
 import urllib2 
 from urllib import urlretrieve
 import struct
+import sys
 
 import mxnet as mx
 import numpy as np
@@ -280,7 +281,8 @@ def lambda_batch_handler(event, context):
     count = len(data)
     if (count % batchSize) != 0:
         print('input files number {:d} cannot be divided by '.format(count) +  
-            'batch size {:d}'.format(count, batchSize))
+            'batch size {:d}'.format(batchSize))
+        exit()
 
     sym, arg_params, aux_params = load_model(f_symbol_file, f_params_file)
     mod = mx.mod.Module(symbol=sym, label_names=None)
@@ -302,10 +304,19 @@ def lambda_batch_handler(event, context):
 
 # for local test
 if __name__ == '__main__':
+    inputBucket = 'vass-video-samples2'
+    inputKey = 'batch-test/1901+100.jpg'
+    batchSize = 1
+    if (len(sys.argv) > 1):
+      batchSize = int(sys.argv[1])
+      if (len(sys.argv) > 2):
+        inputBucket = sys.argv[2]
+      if (len(sys.argv) > 3):
+        inputKey = sys.argv[3]
     event = {
-        'inputBucket': 'vass-video-samples2',
-        'inputKey': 'batch-test/1901+100.jpg',
-        'batchSize': 1
+        'inputBucket': inputBucket,
+        'inputKey': inputKey,
+        'batchSize': batchSize
     }
     out = lambda_batch_handler(event, {})
     print out
