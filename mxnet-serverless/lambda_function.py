@@ -333,11 +333,13 @@ def lambda_batch_handler(event, context):
             "times": timelist,
             "statusCode": 200
     }
+    print timelist
     return out
 
 
 # for local test
 if __name__ == '__main__':
+    start = now()
     inputBucket = 'vass-video-samples2'
     inputKey = 'batch-test/1901+100.jpg'
     batchSize = 1
@@ -353,4 +355,6 @@ if __name__ == '__main__':
         'batchSize': batchSize
     }
     out = lambda_batch_handler(event, {})
-    print out
+    end = now()
+    print('Total time: {:.4f}'.format(end - start))
+    #print out
