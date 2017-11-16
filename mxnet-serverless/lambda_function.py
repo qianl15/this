@@ -39,7 +39,7 @@ urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.para
 f_symbol_file = '/tmp/' + f_symbol
 urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
 end = now()
-print('Time to download MXNet model: {:.4f}'.format(end - start))
+print('Time to download MXNet model: {:.4f} s'.format(end - start))
 
 def ensure_clean_state():
     if os.path.exists(LOCAL_IMG_PATH):
@@ -282,14 +282,13 @@ def lambda_batch_handler(event, context):
     start = now()
     download_input_from_s3(inputBucket, inputKey)
     end = now()
-    print('Time to download input file: {:.4f}'.format(end - start))
+    print('Time to download input file: {:.4f} s'.format(end - start))
 
     start = now()
     data = one_file_to_many(LOCAL_IMG_PATH)
     end = now()
-    print('Time to extract file: {:.4f}'.format(end - start))
-
     count = len(data)
+    print('Time to extract {:d} file: {:.4f} s'.format(count, end - start))
     if (count % batchSize) != 0:
         print('input files number {:d} cannot be divided by '.format(count) +  
             'batch size {:d}'.format(batchSize))
@@ -302,12 +301,13 @@ def lambda_batch_handler(event, context):
             label_shapes=mod._label_shapes)
     mod.set_params(arg_params, aux_params, allow_missing=True)
     end = now()
-    print('Time to prepare and load parameters: {:.4f}'.format(end - start))
+    print('Time to prepare and load parameters: {:.4f} s'.format(end - start))
 
     start = now()
     labels = predict_batch(batchSize, data, mod)
     end = now()
-    print('Time to predict the batch: {:.4f}'.format(end - start))
+    print('Time to predict the {:d} batch: {:.4f} s'.format(batchSize, end -
+       start))
 
     out = {
             "headers": {
