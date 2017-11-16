@@ -31,15 +31,15 @@ f_symbol = 'resnet-18-symbol.json'
 LOCAL_IMG_PATH = os.path.join('/tmp', 'local.jpg')
     
 #params
-start = now()
+# start = now()
 f_params_file = '/tmp/' + f_params
-urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
+# urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
 
 #symbol
 f_symbol_file = '/tmp/' + f_symbol
-urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
-end = now()
-print('Time to download MXNet model: {:.4f} s'.format(end - start))
+# urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
+# end = now()
+# print('Time to download MXNet model: {:.4f} s'.format(end - start))
 
 def ensure_clean_state():
     if os.path.exists(LOCAL_IMG_PATH):
@@ -202,7 +202,9 @@ def predict_batch(batch_size, data, mod):
     return out
 
 def lambda_handler(event, context):
+    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
 
+    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
     # print("Event is :")
     # print(event)
     b64Img = ''
@@ -242,6 +244,15 @@ def lambda_handler(event, context):
 # also support the batch mode predict in MXNet
 def lambda_batch_handler(event, context):
     ensure_clean_state()
+    timelist = "{"
+    start = now()
+    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
+
+    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
+    end = now()
+    print('Time to download MXNet model: {:.4f} s'.format(end - start))
+    timelist += '"download-model" : %f,' % (end - start)
+
     inputBucket = 'vass-video-samples2'
     inputKey = 'batch-test/1901+100.jpg'
     batchSize = 1 # the batch passed to MXNet
@@ -283,12 +294,14 @@ def lambda_batch_handler(event, context):
     download_input_from_s3(inputBucket, inputKey)
     end = now()
     print('Time to download input file: {:.4f} s'.format(end - start))
+    timelist += '"download-input" : %f,' % (end - start)
 
     start = now()
     data = one_file_to_many(LOCAL_IMG_PATH)
     end = now()
     count = len(data)
     print('Time to extract {:d} file: {:.4f} s'.format(count, end - start))
+    timelist += '"extract" : %f,' % (end - start)
     if (count % batchSize) != 0:
         print('input files number {:d} cannot be divided by '.format(count) +  
             'batch size {:d}'.format(batchSize))
@@ -302,19 +315,22 @@ def lambda_batch_handler(event, context):
     mod.set_params(arg_params, aux_params, allow_missing=True)
     end = now()
     print('Time to prepare and load parameters: {:.4f} s'.format(end - start))
-
+    timelist += '"load" : %f,' % (end - start)
     start = now()
     labels = predict_batch(batchSize, data, mod)
     end = now()
     print('Time to predict the {:d} batch: {:.4f} s'.format(batchSize, end -
        start))
+    timelist += '"predict" : %f,' % (end - start)
 
+    timelist += "}"
     out = {
             "headers": {
                 "content-type": "application/json",
                 "Access-Control-Allow-Origin": "*"
                 },
             "body": labels,  
+            "times": timelist,
             "statusCode": 200
     }
     return out
