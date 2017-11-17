@@ -293,11 +293,14 @@ def lambda_batch_handler(event, context):
       if 'outputBucket' in data:
           outputBucket = data['outputBucket']
       else:
-          print('Warning: using default output bucket')
+          outputBucket = inputBucket
+          print('Warning: using default output bucket {:s}'.format(outputBucket))
       if 'outputKey' in data:
           outputKey = data['outputKey']
       else:
-          print('Warning: using default output key')
+          outputKey = inputKey.split(".")[0].split("/")[-1] + '.out'
+          outputKey = DEFAULT_OUT_FOLDER + outputKey
+          print('Warning: using default output key {:s}'.format(outputKey))
   except KeyError:
     # direct invocation
     if 'inputBucket' in event:
@@ -315,11 +318,14 @@ def lambda_batch_handler(event, context):
     if 'outputBucket' in event:
         outputBucket = event['outputBucket']
     else:
-        print('Warning: using default output bucket')
+        outputBucket = inputBucket
+        print('Warning: using default output bucket {:s}'.format(outputBucket))
     if 'outputKey' in event:
         outputKey = event['outputKey']
     else:
-        print('Warning: using default output key')
+        outputKey = inputKey.split(".")[0].split("/")[-1] + '.out'
+        outputKey = DEFAULT_OUT_FOLDER + outputKey
+        print('Warning: using default output key {:s}'.format(outputKey))
 
 
   start = now()
