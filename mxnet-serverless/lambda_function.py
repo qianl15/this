@@ -329,8 +329,9 @@ def lambda_batch_handler(event, context):
                 "content-type": "application/json",
                 "Access-Control-Allow-Origin": "*"
                 },
-            "body": timelist,  
-            #"times": timelist,
+            "body": {
+                "results": labels,  
+                "times": timelist},
             "statusCode": 200
     }
     print timelist
