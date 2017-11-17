@@ -122,16 +122,14 @@ def upload_output_to_s3(bucketName, filePrefix):
     sema = Semaphore(MAX_PARALLEL_UPLOADS)
 
     def upload_file(localFilePath, uploadFileName, fileSize):
-
-        def check_s3_progress(bytesSent):
-            if bytesSent == fileSize:
-                print 'Done: %s' % localFilePath
-                sema.release()
-
         sema.acquire()
-        print 'Start: %s [%dKB]' % (localFilePath, fileSize >> 10)
-        s3.upload_file(localFilePath, bucketName, uploadFileName,
-            Callback=check_s3_progress)
+        try:
+            print 'Start: %s [%dKB]' % (localFilePath, fileSize >> 10)
+            with open(localFilePath, 'rb') as ifs:
+                s3.put_object(Body=ifs, Bucket=bucketName, Key=uploadFileName)
+            print 'Done: %s' % localFilePath
+        finally:
+            sema.release()
 
     for fileName in list_output_files():
         localFilePath = os.path.join(TEMP_OUTPUT_DIR, fileName)
