@@ -29,6 +29,7 @@ Batch = namedtuple('Batch', ['data'])
 f_params = 'resnet-18-0000.params'
 f_symbol = 'resnet-18-symbol.json'
 LOCAL_IMG_PATH = os.path.join('/tmp', 'local.jpg')
+DEFAULT_OUT_FOLDER = 'mxnet-results/'
     
 #params
 # start = now()
@@ -387,7 +388,8 @@ if __name__ == '__main__':
       outputBucket = inputBucket
     if (len(sys.argv) > 3):
       inputKey = sys.argv[3]
-      outputKey = inputKey.split(".")[0].strip() + '.out'
+      outputKey = inputKey.split(".")[0].split("/")[-1] + '.out'
+      outputKey = DEFAULT_OUT_FOLDER + outputKey
     if (len(sys.argv) > 4):
       outputBucket = sys.argv[4]
     if (len(sys.argv) > 5):
