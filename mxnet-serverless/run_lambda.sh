@@ -6,4 +6,4 @@
 
 time aws lambda invoke --invocation-type Event --function-name mxnet-test-dev-hellov2 \
 --region us-west-2 --log-type Tail --payload \
-'{"inputBucket": "vass-video-samples2","inputKey":"jpeg-test/0901+100.jpg","batchSize": 10}' outputfile
+'{"inputBucket": "vass-video-samples2","inputKey":"jpeg-test/0901+100.jpg","batchSize": 10, "outputBucket": "vass-video-samples2", "outputKey": "jpeg-test/0901+100.jpg"}' outputfile

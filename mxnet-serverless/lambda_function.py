@@ -384,8 +384,10 @@ if __name__ == '__main__':
     batchSize = int(sys.argv[1])
     if (len(sys.argv) > 2):
       inputBucket = sys.argv[2]
+      outputBucket = inputBucket
     if (len(sys.argv) > 3):
       inputKey = sys.argv[3]
+      outputKey = inputKey.split(".")[0].strip() + '.out'
     if (len(sys.argv) > 4):
       outputBucket = sys.argv[4]
     if (len(sys.argv) > 5):
