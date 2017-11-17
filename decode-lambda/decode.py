@@ -126,7 +126,9 @@ def upload_output_to_s3(bucketName, filePrefix):
         try:
             print 'Start: %s [%dKB]' % (localFilePath, fileSize >> 10)
             with open(localFilePath, 'rb') as ifs:
-                s3.put_object(Body=ifs, Bucket=bucketName, Key=uploadFileName)
+                s3.put_object(Body=ifs, Bucket=bucketName,
+                    Key=uploadFileName,
+                    StorageClass='REDUCED_REDUNDANCY')
             print 'Done: %s' % localFilePath
         finally:
             sema.release()
