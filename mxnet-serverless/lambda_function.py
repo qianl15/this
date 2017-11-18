@@ -15,6 +15,8 @@ from urllib import urlretrieve
 import struct
 import sys
 from timeit import default_timer as now
+import HTMLParser
+html_parser = HTMLParser.HTMLParser()
 
 import mxnet as mx
 import numpy as np
@@ -46,11 +48,11 @@ def ensure_clean_state():
   if os.path.exists(LOCAL_IMG_PATH):
     os.remove(LOCAL_IMG_PATH)
 
-def download_input_from_s3(bucketName, fileName):
+def download_input_from_s3(bucketName, fileName, localfile=LOCAL_IMG_PATH):
   print('Downloading file {:s} from s3: {:s}'.format(fileName, bucketName))
   s3 = boto3.resource('s3')
   try:
-    s3.Bucket(bucketName).download_file(fileName, LOCAL_IMG_PATH)
+    s3.Bucket(bucketName).download_file(fileName, localfile)
   except botocore.exceptions.ClientError as e:
     if e.response['Error']['Code'] == "404":
       print("The object does not exist.")
@@ -293,7 +295,7 @@ def lambda_batch_handler(event, context):
       if 'outputBucket' in data:
           outputBucket = data['outputBucket']
       else:
-          outputBucket = inputBucket
+          outputBucket = inputBucket + "-results"
           print('Warning: using default output bucket {:s}'.format(outputBucket))
       if 'outputKey' in data:
           outputKey = data['outputKey']
@@ -318,7 +320,7 @@ def lambda_batch_handler(event, context):
     if 'outputBucket' in event:
         outputBucket = event['outputBucket']
     else:
-        outputBucket = inputBucket
+        outputBucket = inputBucket + "-results"
         print('Warning: using default output bucket {:s}'.format(outputBucket))
     if 'outputKey' in event:
         outputKey = event['outputKey']
@@ -377,6 +379,76 @@ def lambda_batch_handler(event, context):
   upload_output_to_s3(outputBucket, outputKey, out)
 
   return out
+
+
+# link with S3 event
+def lambda_s3_batch_handler(event, context):
+  ensure_clean_state()
+  inputBucket = 'vass-video-samples2'
+  inputKey = 'batch-test/1901+100.jpg'
+  batchSize = 10 # the batch passed to MXNet, cannot be passed through s3 event
+  outputBucket = 'vass-video-samples2-results'
+  outputKey = 'mxnet-results/1901+100.out'
+
+  timelist = "{"
+  start = now()
+  urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
+
+  urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
+  end = now()
+  print('Time to download MXNet model: {:.4f} s'.format(end - start))
+  timelist += '"download-model" : %f,' % (end - start)
+
+  start = now()
+  sym, arg_params, aux_params = load_model(f_symbol_file, f_params_file)
+  mod = mx.mod.Module(symbol=sym, label_names=None)
+  mod.bind(for_training=False, data_shapes=[('data', (batchSize,3,224,224))],
+          label_shapes=mod._label_shapes)
+  mod.set_params(arg_params, aux_params, allow_missing=True)
+  end = now()
+  print('Time to prepare and load parameters: {:.4f} s'.format(end - start))
+  timelist += '"load" : %f,' % (end - start)
+  
+  for record in event['Records']:
+    inputBucket = html_parser.unescape(record['s3']['bucket']['name'])
+    inputKey = html_parser.unescape(record['s3']['object']['key'])
+    outputBucket = inputBucket + "-results"
+    outputKey = inputKey.split(".")[0].split("/")[-1] + '.out'
+    outputKey = DEFAULT_OUT_FOLDER + outputKey
+    
+    start = now()
+    download_input_from_s3(inputBucket, inputKey, LOCAL_IMG_PATH)
+    end = now()
+    print('Time to download input file: {:.4f} s'.format(end - start))
+    timelist += '"download-input" : %f,' % (end - start)
+
+    start = now()
+    data = one_file_to_many(LOCAL_IMG_PATH)
+    end = now()
+    count = len(data)
+    print('Time to extract {:d} file: {:.4f} s'.format(count, end - start))
+    timelist += '"extract" : %f,' % (end - start)
+    if (count % batchSize) != 0:
+      print('input files number {:d} cannot be divided by '.format(count) +  
+          'batch size {:d}'.format(batchSize))
+      exit()
+    
+    start = now()
+    labels = predict_batch(batchSize, data, mod)
+    end = now()
+    print('Time to predict the {:d} batch: {:.4f} s'.format(batchSize, end -
+       start))
+    timelist += '"predict" : %f' % (end - start)
+
+    timelist += "}"
+    out = {
+        "results": labels,  
+        "times": timelist
+    }
+    print timelist
+
+    upload_output_to_s3(outputBucket, outputKey, out)
+
 
 
 # for local test

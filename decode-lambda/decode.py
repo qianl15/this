@@ -94,7 +94,7 @@ def combine_output_files(outputBatchSize):
         ]
         name, ext = os.path.splitext(batch[0])
         outputFilePath = os.path.join(
-            TEMP_OUTPUT_DIR, '%s+%d%s' % (name, len(batch), ext))
+            TEMP_OUTPUT_DIR, '%s-%d%s' % (name, len(batch), ext))
         many_files_to_one(inputFilePaths, outputFilePath)
         for filePath in inputFilePaths:
             os.remove(filePath)
