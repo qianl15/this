@@ -398,16 +398,6 @@ def lambda_s3_batch_handler(event, context):
   end = now()
   print('Time to download MXNet model: {:.4f} s'.format(end - start))
   timelist += '"download-model" : %f,' % (end - start)
-
-  start = now()
-  sym, arg_params, aux_params = load_model(f_symbol_file, f_params_file)
-  mod = mx.mod.Module(symbol=sym, label_names=None)
-  mod.bind(for_training=False, data_shapes=[('data', (batchSize,3,224,224))],
-          label_shapes=mod._label_shapes)
-  mod.set_params(arg_params, aux_params, allow_missing=True)
-  end = now()
-  print('Time to prepare and load parameters: {:.4f} s'.format(end - start))
-  timelist += '"load" : %f,' % (end - start)
   
   for record in event['Records']:
     inputBucket = html_parser.unescape(record['s3']['bucket']['name'])
@@ -431,8 +421,23 @@ def lambda_s3_batch_handler(event, context):
     if (count % batchSize) != 0:
       print('input files number {:d} cannot be divided by '.format(count) +  
           'batch size {:d}'.format(batchSize))
-      exit()
-    
+      # exit()
+      if count < 100:
+        batchSize = count
+      else:
+        batchSize = 1
+      print('Using batch size: {:d}'.format(batchSize))
+
+    start = now()
+    sym, arg_params, aux_params = load_model(f_symbol_file, f_params_file)
+    mod = mx.mod.Module(symbol=sym, label_names=None)
+    mod.bind(for_training=False, data_shapes=[('data', (batchSize,3,224,224))],
+            label_shapes=mod._label_shapes)
+    mod.set_params(arg_params, aux_params, allow_missing=True)
+    end = now()
+    print('Time to prepare and load parameters: {:.4f} s'.format(end - start))
+    timelist += '"load" : %f,' % (end - start)
+  
     start = now()
     labels = predict_batch(batchSize, data, mod)
     end = now()
