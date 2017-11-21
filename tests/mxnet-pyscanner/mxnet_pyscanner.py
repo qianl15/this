@@ -20,7 +20,7 @@ from urllib import urlretrieve
 # choose which video we wanted to download, and the format
 # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
 # By default, we download the third video with the lowest quality
-def test_pymxnet(num = 3, fm_num = 1, out_dir = './'):
+def test_pymxnet(num = 3, fm_num = 1, out_dir = './', batch = 1):
 
   if num > 4:
     test_video_path = util.download_video2('http://web.stanford.edu/~jamesh93/video/wild480p.mkv')
@@ -66,7 +66,7 @@ def test_pymxnet(num = 3, fm_num = 1, out_dir = './'):
     start = now()
     frame = db.ops.FrameInput()
     # Then we use our op just like in the other examples.
-    classes = db.ops.PyMxnet(frame = frame, batch=32)
+    classes = db.ops.PyMxnet(frame = frame, batch = batch)
     output_op = db.ops.Output(columns=[classes])
     job = Job(
       op_args={
@@ -103,6 +103,7 @@ if __name__ == '__main__':
   num = 1 # which video
   fm_num = 1 # which resolution
   out_dir = './' # which output directory
+  batch = 1
 
   f_params = 'resnet-18-0000.params'
   f_symbol = 'resnet-18-symbol.json'
@@ -116,7 +117,7 @@ if __name__ == '__main__':
   urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
 
   if (len(sys.argv) < 1) or (len(sys.argv) > 5):
-    print('Usage: python mxnet_pyscanner.py <video_num> <video_resolution> <out_dir>');
+    print('Usage: python mxnet_pyscanner.py <video_num> <video_resolution> <out_dir> <batch_size>');
     exit()
 
   if (len(sys.argv) > 1):
@@ -125,5 +126,7 @@ if __name__ == '__main__':
     fm_num = int(sys.argv[2])
   if (len(sys.argv) > 3):
     out_dir = sys.argv[3]
+  if (len(sys.argv) > 4):
+    batch = int(sys.argv[4])
 
-  test_pymxnet(num, fm_num, out_dir)
+  test_pymxnet(num, fm_num, out_dir, batch)

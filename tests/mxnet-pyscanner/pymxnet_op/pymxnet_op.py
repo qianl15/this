@@ -32,6 +32,19 @@ f_params_file = '/tmp/' + f_params
 #symbol
 f_symbol_file = '/tmp/' + f_symbol
 
+#params
+start = now()
+if not os.path.isfile(f_params_file):
+    print ("retrieving params")
+    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
+
+#symbol
+if not os.path.isfile(f_symbol_file):
+    print ("retrieving symbols")
+    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
+end = now()
+print('Time to download MXNet model: {:.4f} s'.format(end - start))
+
 class PyMxnetKernel(scannerpy.Kernel):
   def __init__(self, config, protobufs):
     self.protobufs = protobufs
@@ -39,7 +52,8 @@ class PyMxnetKernel(scannerpy.Kernel):
   def close(self):
     pass
 
-  def load_model(self, s_fname, p_fname):
+  @staticmethod
+  def load_model(s_fname, p_fname):
     # Load model checkpoint from file.
     # :return: (arg_params, aux_params)
     # arg_params : dict of str to NDArray
@@ -58,7 +72,8 @@ class PyMxnetKernel(scannerpy.Kernel):
         aux_params[name] = v
     return symbol, arg_params, aux_params
 
-  def predict(self, batch_size, data, mod, synsets=None):
+  @staticmethod
+  def predict(batch_size, data, mod, synsets=None):
     # predict labels for a batch of images
 
     data_size = len(data)
@@ -104,7 +119,8 @@ class PyMxnetKernel(scannerpy.Kernel):
 
     return labels
 
-  def convertToJpeg(self, im):
+  @staticmethod
+  def convertToJpeg(im):
     with BytesIO() as f:
       im.save(f, format='JPEG')
 
@@ -117,19 +133,6 @@ class PyMxnetKernel(scannerpy.Kernel):
 
     out_cols = []
     data = []
-    #params
-    start = now()
-    if not os.path.isfile(f_params_file):
-        print ("retrieving params")
-        urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
-
-    #symbol
-    if not os.path.isfile(f_symbol_file):
-        print ("retrieving symbols")
-        urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
-    end = now()
-    print('Time to download MXNet model: {:.4f} s'.format(end - start))
-
     for i in xrange(input_count):
         pil_im = Image.fromarray(input_columns[0][i])
         jpeg_image = self.convertToJpeg(pil_im) # also convert to jpeg
