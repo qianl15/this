@@ -45,6 +45,7 @@ def main(num = 1, fm_num = 1):
   else:
     movie_path = util.download_video1(num, fm_num)
 
+  #movie_path = 'videos/example3_134.mp4'
   print('Detecting shots in movie {}'.format(movie_path))
   movie_name = 'shot_detect'
 

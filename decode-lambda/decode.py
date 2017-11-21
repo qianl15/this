@@ -263,7 +263,7 @@ if __name__ == '__main__':
     event = {
         'videoUrl': 'http://web.stanford.edu/~jamesh93/video/wild480p.mkv',
         'outputBucket': 'vass-video-samples2',
-        'outputPrefix': 'jpeg-test',
+        'outputPrefix': 'mxnet-test',
         'decodeFps': 30,
         'outputBatchSize': 100,
         # 'keepOutput': 'true'
