@@ -47,7 +47,7 @@ def test_pymxnet(num = 3, fm_num = 1, out_dir = './'):
     # db.load_op('pymxnet_op/build/libpymxnet_op.so', 'pymxnet_op/build/pymxnet_pb2.py')
     db.register_op('PyMxnet', [('frame', ColumnType.Video)], ['class'])
     kernel_path = script_dir + '/pymxnet_op/pymxnet_op.py'
-    db.register_python_kernel('PyMxnet', DeviceType.CPU, kernel_path)
+    db.register_python_kernel('PyMxnet', DeviceType.CPU, kernel_path, batch=10)
 
     start = now()
     [input_table], failed = db.ingest_videos([ 
@@ -66,7 +66,7 @@ def test_pymxnet(num = 3, fm_num = 1, out_dir = './'):
     start = now()
     frame = db.ops.FrameInput()
     # Then we use our op just like in the other examples.
-    classes = db.ops.PyMxnet(frame = frame)
+    classes = db.ops.PyMxnet(frame = frame, batch=32)
     output_op = db.ops.Output(columns=[classes])
     job = Job(
       op_args={
@@ -75,7 +75,7 @@ def test_pymxnet(num = 3, fm_num = 1, out_dir = './'):
       }
     )
     bulk_job = BulkJob(output=output_op, jobs=[job])
-    [output_table] = db.run(bulk_job, force=True, profiling=True)
+    [output_table] = db.run(bulk_job, force=True, profiling=True, pipeline_instances_per_node=1)
 
     stop = now()
     delta = stop - start

@@ -28,17 +28,9 @@ f_symbol = 'resnet-18-symbol.json'
 
 #params
 f_params_file = '/tmp/' + f_params
-if not os.path.isfile(f_params_file):
-    print ("retrieving params")
-    # urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-0000.params", f_params_file)
-    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
 
 #symbol
 f_symbol_file = '/tmp/' + f_symbol
-if not os.path.isfile(f_symbol_file):
-    print ("retrieving symbols")
-    # urlretrieve("http://data.dmlc.ml/mxnet/models/imagenet/resnet/18-layers/resnet-18-symbol.json", f_symbol_file)
-    urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
 
 class PyMxnetKernel(scannerpy.Kernel):
   def __init__(self, config, protobufs):
@@ -66,40 +58,51 @@ class PyMxnetKernel(scannerpy.Kernel):
         aux_params[name] = v
     return symbol, arg_params, aux_params
 
-  def predict(self, img, mod, synsets=None):
-    # predict labels for a given image
+  def predict(self, batch_size, data, mod, synsets=None):
+    # predict labels for a batch of images
 
-
-    # PIL conversion
-    #size = 224, 224
-    #img = img.resize((224, 224), Image.ANTIALIAS)
-
+    data_size = len(data)
+    cnt = 0
     # center crop and resize
     # ** width, height must be greater than new_width, new_height 
     new_width, new_height = 224, 224
-    width, height = img.size   # Get dimensions
-    left = (width - new_width)/2
-    top = (height - new_height)/2
-    right = (width + new_width)/2
-    bottom = (height + new_height)/2
+    labels = []
+    while cnt < data_size:
+      img_list = []
+      for frame in data[cnt:cnt+batch_size]:
+        img = frame
+        width, height = img.size   # Get dimensions
+        left = (width - new_width)/2
+        top = (height - new_height)/2
+        right = (width + new_width)/2
+        bottom = (height + new_height)/2
 
-    img = img.crop((left, top, right, bottom))
-    # convert to numpy.ndarray
-    sample = np.asarray(img)
-    # swap axes to make image from (224, 224, 3) to (3, 224, 224)
-    sample = np.swapaxes(sample, 0, 2)
-    img = np.swapaxes(sample, 1, 2)
-    img = img[np.newaxis, :] 
-   
-    # forward pass through the network
-    mod.forward(Batch([mx.nd.array(img)]))
-    prob = mod.get_outputs()[0].asnumpy()
-    prob = np.squeeze(prob)
-    a = np.argsort(prob)[::-1]
-    
-    out = a[0]
+        img = img.crop((left, top, right, bottom))
+        # convert to numpy.ndarray
+        sample = np.asarray(img)
+        # swap axes to make image from (224, 224, 3) to (3, 224, 224)
+        sample = np.swapaxes(sample, 0, 2)
+        img = np.swapaxes(sample, 1, 2)
+        img_list.append(img)
+ 
+      # forward pass through the network
+      start = now()
+      batch = mx.io.DataBatch([mx.nd.array(img_list)], [])
+      mod.forward(batch)
+      probs = mod.get_outputs()[0].asnumpy()
+      # print probs.shape
+      stop = now()
+      delta = stop - start
+      print('Time to forward: {:.4f} s'.format(delta))
 
-    return out
+      for prob in probs:
+        prob = np.squeeze(prob)
+        a = np.argsort(prob)[::-1]
+        labels.append(struct.pack('=i', a[0]))
+
+      cnt += batch_size
+
+    return labels
 
   def convertToJpeg(self, im):
     with BytesIO() as f:
@@ -108,30 +111,50 @@ class PyMxnetKernel(scannerpy.Kernel):
       return f.getvalue()
 
   def execute(self, input_columns):
-    # cv2_im = cv2.cvtColor(input_columns[0],cv2.COLOR_BGR2RGB)
-    pil_im = Image.fromarray(input_columns[0])
-    jpeg_image = self.convertToJpeg(pil_im) # also convert to jpeg
-    img = Image.open(BytesIO(jpeg_image))
+    input_count = len(input_columns[0])
+    column_count = len(input_columns)
+    assert column_count == 1
 
-    # width, height = pil_im.size
-    # print('width {}, height {}'.format(width, height))
+    out_cols = []
+    data = []
+    #params
+    start = now()
+    if not os.path.isfile(f_params_file):
+        print ("retrieving params")
+        urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-0000.params", f_params_file)
+
+    #symbol
+    if not os.path.isfile(f_symbol_file):
+        print ("retrieving symbols")
+        urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/resnet-18-symbol.json", f_symbol_file)
+    end = now()
+    print('Time to download MXNet model: {:.4f} s'.format(end - start))
+
+    for i in xrange(input_count):
+        pil_im = Image.fromarray(input_columns[0][i])
+        jpeg_image = self.convertToJpeg(pil_im) # also convert to jpeg
+        img = Image.open(BytesIO(jpeg_image))
+        data.append(img)
+    print('batch = # {:d} images'.format(len(data)))
     start = now()
     sym, arg_params, aux_params = self.load_model(f_symbol_file, f_params_file)
 
     mod = mx.mod.Module(symbol=sym, label_names=None)
-    mod.bind(for_training=False, data_shapes=[('data', (1,3,224,224))], label_shapes=mod._label_shapes)
+    mod.bind(for_training=False, data_shapes=[('data', (input_count,3,224,224))], label_shapes=mod._label_shapes)
     mod.set_params(arg_params, aux_params, allow_missing=True)
     stop = now()
     delta = stop - start
     print('Time to load model: {:.4f}s'.format(delta))
 
     start = now()
-    label = self.predict(img, mod)
+    labels = self.predict(input_count, data, mod) # a list of labels
     stop = now()
     delta = stop - start
     print('Time to predict: {:.4f}s'.format(delta))
-    # print label
-    return [struct.pack('=i', label)]
+        # print label
+        # return [struct.pack('=i', label)]
+    out_cols.append(labels)
+    return out_cols
 
 KERNEL = PyMxnetKernel
 
