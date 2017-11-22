@@ -1,0 +1,15 @@
+# Warning: this is also used as the .dockerignore, and the matching patterns are
+# similar but **not quite** the same. If you add a file here, make sure that
+# the Docker build still works.
+
+.cache
+build
+**/*.pyc
+**/*.trace
+python/*.egg-info
+cmake-build-debug
+.idea/
+
+**/*.mp4
+**/*.mkv
+*.jpg
