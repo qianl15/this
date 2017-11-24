@@ -10,6 +10,7 @@
 #include "scanner/util/opencv.h"  // for using OpenCV
 
 #include <fstream>
+#include <sys/stat.h>
 
 extern "C" {
 #include "libavcodec/avcodec.h"
@@ -17,8 +18,30 @@ extern "C" {
 namespace scanner {
 namespace internal {
   
+  void checkOutputDir(std::string &dir) {
+    struct stat st;
+    if (stat(dir.c_str(), &st) == 0) {
+      if (st.st_mode & S_IFDIR != 0) {
+        printf("Output dir: %s exists!\n", dir.c_str());
+      }
+    } else {
+      printf("Creating dir: %s ...\n", dir.c_str());
+      const int dir_err = mkdir(dir.c_str(),  S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+      if (dir_err != 0) {
+        printf("Error creating dir: %s !\n", dir.c_str());
+        exit(-1);
+      }
+    }
+  }
+
   void decodeFromDisk(int argc, char *argv[]) {
     avcodec_register_all();
+    std::string output_dir = "/tmp/output";
+    if (argc >= 4) {
+      output_dir = argv[3];
+    }
+    
+    checkOutputDir(output_dir);
 
     std::fstream decodeArgsFile(argv[1], std::ios::in | std::ios::binary);
     //std::fstream encodedFile(argv[2], std::ios::in | std::ios::binary);
@@ -106,7 +129,7 @@ namespace internal {
         exit(1);
       }
       std::string str_encode(buf.begin(), buf.end());
-      std::fstream output_buff("frame" + ind_str + ".jpg",
+      std::ofstream output_buff(output_dir + "/frame" + ind_str + ".jpg",
           std::ios::out | std::ios::trunc | std::ios::binary);
       output_buff.write(str_encode.c_str(), str_encode.size());
       printf("Save frame%d.jpg to disk \n", ind);
@@ -122,6 +145,12 @@ namespace internal {
 }
 
 int main(int argc, char *argv[]) {
+  if (argc < 3 || argc > 4) {
+    std::cout << "Usage: DecoderAutomataCmd <proto_file> <bin_file> (<output_dir>) \n";
+    std::cout << "Example:\n";
+    std::cout << "decode_args1000.proto start_frame1000.bin /tmp/output\n";
+    exit(-1);
+  }
   scanner::internal::decodeFromDisk(argc, argv);
   return 0;
 }
