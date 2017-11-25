@@ -1,0 +1,5 @@
+*.bin
+*.proto
+*.jpg
+*.trace
+*.out
