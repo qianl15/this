@@ -386,7 +386,7 @@ def lambda_s3_batch_handler(event, context):
   ensure_clean_state()
   inputBucket = 'vass-video-samples2'
   inputKey = 'batch-test/1901+100.jpg'
-  batchSize = 10 # the batch passed to MXNet, cannot be passed through s3 event
+  batchSize = 50 # the batch passed to MXNet, cannot be passed through s3 event
   outputBucket = 'vass-video-samples2-results'
   outputKey = 'mxnet-results/1901-100.out'
 
