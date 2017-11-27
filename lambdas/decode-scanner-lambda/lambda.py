@@ -189,11 +189,12 @@ def handler(event, context):
   outputBatchSize = 1
 
   outputBucket = "vass-video-samples2-results"
-  outputPrefix = "decode-test"
+  outputPrefix = "decode-output"
   
   if 'inputBucket' in event:
     inputBucket = event['inputBucket']
-    outputBucket = inputBucket + '-results'
+    # outputBucket = inputBucket + '-results'
+    outputBucket = inputBucket
   else:
     print('Warning: using default input bucket: {:s}'.format(inputBucket))
   if 'inputPrefix' in event:
