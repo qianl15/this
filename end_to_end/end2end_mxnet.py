@@ -14,6 +14,7 @@ import os.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tests')
 import util
 from timeit import default_timer as now
+import time
 import math
 from urllib import urlretrieve
 import boto3
@@ -41,6 +42,7 @@ PROTO_EXT = 'proto'
 BIN_EXT = 'bin'
 OUT_EXT = 'out'
 
+TIMEOUT_SECONDS = 300.0 # maximum wait time
 
 def list_output_files(outputDir = './', fileExt = None):
   if fileExt == None:
@@ -127,6 +129,45 @@ def invoke_decoder_lambda(bucketName, filePrefix, startFrame, batchSize):
   else:
     return False
 
+# Wait until all output files appear in S3 bucket, return # files
+def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
+  fileLists = []
+  totalCount = len(xrange(startFrame, numRows, batch))
+  s3 = boto3.resource('s3')
+  outputBucket = DOWNLOAD_BUCKET
+  startTime = now()
+  timeOut = startTime + TIMEOUT_SECONDS
+
+  time.sleep(10.0) # sleep for 10 seconds to wait for decoder finished!
+  while len(fileLists) < totalCount:
+    remain = numRows
+    for currStart in xrange(startFrame, numRows, batch):
+      currEnd = min(remain, batch)
+      outputKey = '{}/{}/frame{}-{}.out'.format(DOWNLOAD_PREFIX, videoPrefix,
+       currStart, currEnd)
+      if outputKey not in fileLists:
+        # print('Testing outputKey {}'.format(outputKey))
+        try:
+          s3.Object(outputBucket, outputKey).load()
+        except botocore.exceptions.ClientError as e:
+          if e.response['Error']['Code'] == "404":
+              pass
+          else:
+              # Something else has gone wrong.
+              raise
+        else:
+          print('Output file {} found!'.format(outputKey))
+          fileLists.append(outputKey)
+
+      remain -= batch
+      currTime = now()
+      if currTime >= timeOut:
+        print('Timed out in {:.4f} sec, cannot finish.'.format(currTime - startTime))
+        break
+    if currTime >= timeOut:
+      break
+
+  return len(fileLists)
 
 # choose which video we wanted to download, and the format
 # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
@@ -215,32 +256,37 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
 
   # Then start the Lambda part
   # extract video name
-  video_prefix = test_video_path.split(".")[-2].split("/")[-1]
-  print('video name is: {:s}'.format(video_prefix))
-  upload_prefix = UPLOAD_PREFIX + '/' + video_prefix
+  videoPrefix = test_video_path.split(".")[-2].split("/")[-1]
+  print('video name is: {:s}'.format(videoPrefix))
+  uploadPrefix = UPLOAD_PREFIX + '/' + videoPrefix
 
   if load_to_disk == True:
     # Upload all .proto files
     fileCount, totalSize = upload_output_to_s3(
-      UPLOAD_BUCKET, upload_prefix, PROTO_EXT)
+      UPLOAD_BUCKET, uploadPrefix, PROTO_EXT)
 
     # Upload all .bin files
     fileCount, totalSize = upload_output_to_s3(
-      UPLOAD_BUCKET, upload_prefix, BIN_EXT)
+      UPLOAD_BUCKET, uploadPrefix, BIN_EXT)
 
     # Call Lambdas to decode, provide Bucket Name, File Prefix, Start Frame
-    for start_frame in xrange(0, num_rows, WORK_PACKET_SIZE):
-      print start_frame
-      result = invoke_decoder_lambda(UPLOAD_BUCKET, upload_prefix, 
-                                     start_frame, batch)
+    # Then decoder Lambdas will write to S3, which will trigger MXNet Lambdas
+    for startFrame in xrange(0, num_rows, WORK_PACKET_SIZE):
+      print("Invoke lambda for start frame {:d}".format(startFrame))
+      result = invoke_decoder_lambda(UPLOAD_BUCKET, uploadPrefix, 
+                                     startFrame, batch)
       if not result:
-        print('Fail to invoke for frame {:d}, retry.'.format(start_frame))
-        res = invoke_decoder_lambda(UPLOAD_BUCKET, upload_prefix, 
-                                    start_frame, batch)
+        print('Fail to invoke for frame {:d}, retry.'.format(startFrame))
+        res = invoke_decoder_lambda(UPLOAD_BUCKET, uploadPrefix, 
+                                    startFrame, batch)
         if not res:
-          print('Frame {:d} still failed, exit'.format(start_frame))
+          print('Frame {:d} still failed, exit'.format(startFrame))
           exit()
 
+    # Wait until all output files appear
+    fileCount = wait_until_all_finished(0, num_rows, batch, videoPrefix)
+    assert(fileCount == len(xrange(0, num_rows, batch)))
+    print('Finished! collected {:d} files!'.format(fileCount))
 
 if __name__ == '__main__':
   num = 1 # which video
@@ -279,4 +325,7 @@ if __name__ == '__main__':
   print('Batch {:d}, #{:d} video, #{:d} format, outdir: {}'.format(batch, 
     num, fm_num, out_dir))
 
+  start = now()
   start_mxnet_pipeline(test_video_path, out_dir, batch, load_to_disk)
+  stop = now()
+  print('Total pipeline time is: {:.4f} s'.format(stop - start))
