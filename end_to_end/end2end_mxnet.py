@@ -110,12 +110,13 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
   return (count, totalSize)
 
 
-def invoke_decoder_lambda(bucketName, filePrefix, startFrame):
+def invoke_decoder_lambda(bucketName, filePrefix, startFrame, batchSize):
   client = boto3.client('lambda')
   payload = '{{ \"inputBucket\": \"{:s}\", \
     \"inputPrefix\": \"{:s}\", \
-    \"startFrame\": {:d} \
-    }}'.format(bucketName, filePrefix, startFrame)
+    \"startFrame\": {:d}, \
+    \"outputBatchSize\": {:d}\
+    }}'.format(bucketName, filePrefix, startFrame, batchSize)
 
   response = client.invoke(FunctionName='decoder-scanner',
                            InvocationType='Event',
@@ -229,10 +230,13 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
 
     # Call Lambdas to decode, provide Bucket Name, File Prefix, Start Frame
     for start_frame in xrange(0, num_rows, WORK_PACKET_SIZE):
-      result = invoke_decoder_lambda(UPLOAD_BUCKET, upload_prefix, start_frame)
+      print start_frame
+      result = invoke_decoder_lambda(UPLOAD_BUCKET, upload_prefix, 
+                                     start_frame, batch)
       if not result:
         print('Fail to invoke for frame {:d}, retry.'.format(start_frame))
-        res = invoke_decoder_lambda(UPLOAD_BUCKET, upload_prefix, start_frame)
+        res = invoke_decoder_lambda(UPLOAD_BUCKET, upload_prefix, 
+                                    start_frame, batch)
         if not res:
           print('Frame {:d} still failed, exit'.format(start_frame))
           exit()

@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import subprocess
 import boto3
@@ -12,6 +13,7 @@ from timeit import default_timer as now
 
 DECODER_PATH = '/tmp/DecoderAutomataCmd-static'
 TEMP_OUTPUT_DIR = '/tmp/output'
+LOCAL_INPUT_DIR = '/tmp/input'
 
 shutil.copy('DecoderAutomataCmd-static', DECODER_PATH)
 os.chmod(DECODER_PATH, 0o755)
@@ -68,8 +70,34 @@ def combine_output_files(outputBatchSize):
   if len(currentBatch) > 0: 
     encode_batch(currentBatch)
 
+def download_input_from_s3(bucketName, inputPrefix, startFrame):
+  def download_s3(s3Path, localPath):
+    try:
+      s3.Bucket(bucketName).download_file(s3Path, localPath)
+    except botocore.exceptions.ClientError as e:
+      if e.response['Error']['Code'] == "404":
+        print("The object does not exist.")
+      else:
+        raise
+
+  protoFileName = 'decode_args{:d}.proto'.format(startFrame)
+  binFileName = 'start_frame{:d}.bin'.format(startFrame)
+  print('Downloading files {:s} and {:s} for batch {:d} \
+        from s3: {:s}/{:s}'.format(protoFileName, binFileName, startFrame, 
+          bucketName, inputPrefix))
+  s3 = boto3.resource('s3')
+  s3ProtoName = inputPrefix + '/' + protoFileName
+  s3BinName = inputPrefix + '/' + binFileName
+  protoPath = LOCAL_INPUT_DIR + '/' + protoFileName
+  binPath = LOCAL_INPUT_DIR + '/' + binFileName
+  
+  download_s3(s3ProtoName, protoPath)
+  download_s3(s3BinName, binPath)
+
+  return protoPath, binPath
+
 def upload_output_to_s3(bucketName, filePrefix):
-  print 'Uploading files to s3: %s' % bucketName
+  print('Uploading files to s3: {:s}/{:s}'.format(bucketName, filePrefix))
   s3 = boto3.client('s3', config=botocore.client.Config(
     max_pool_connections=MAX_PARALLEL_UPLOADS))
 
@@ -133,25 +161,101 @@ def ensure_clean_state():
     shutil.rmtree(TEMP_OUTPUT_DIR)
   if not os.path.exists(TEMP_OUTPUT_DIR):
     os.mkdir(TEMP_OUTPUT_DIR)
+  if os.path.exists(LOCAL_INPUT_DIR):
+    shutil.rmtree(LOCAL_INPUT_DIR)
+  if not os.path.exists(LOCAL_INPUT_DIR):
+    os.mkdir(LOCAL_INPUT_DIR)
 
 
-def handler(event, context):
-  ensure_clean_state()
-
-  outputBucket = "vass-video-samples2-results"
-  outputPrefix = "decode-test"
-  outputBatchSize = 1
-
+def convert_to_jpegs(protoPath, binPath):
   assert(os.path.exists(TEMP_OUTPUT_DIR))
-
-  cmd = [DECODER_PATH, 'decode_args0.proto', 'start_frame0.bin', TEMP_OUTPUT_DIR]
+  cmd = [DECODER_PATH, protoPath, binPath, TEMP_OUTPUT_DIR]
   process = subprocess.Popen(
     ' '.join(cmd), shell=True,
     stdout=subprocess.PIPE, 
     stderr=subprocess.PIPE)
   out, err = process.communicate()
   rc = process.returncode
+  print 'stdout:', out
+  print 'stderr:', err
+  return rc == 0
 
-  fileCount, totalSize = upload_output_to_s3(outputBucket, outputPrefix)
-  shutil.rmtree(TEMP_OUTPUT_DIR)
-  return { 'out': out, 'err': err, 'retcode': rc }
+def handler(event, context):
+  ensure_clean_state()
+
+  inputBucket = 'vass-video-samples2'
+  inputPrefix = 'protobin/example3_134'
+  startFrame = 0
+  outputBatchSize = 1
+
+  outputBucket = "vass-video-samples2-results"
+  outputPrefix = "decode-test"
+  
+  if 'inputBucket' in event:
+    inputBucket = event['inputBucket']
+    outputBucket = inputBucket + '-results'
+  else:
+    print('Warning: using default input bucket: {:s}'.format(inputBucket))
+  if 'inputPrefix' in event:
+    inputPrefix = event['inputPrefix']
+    # get the video name!
+    outputPrefix = outputPrefix + '/' + inputPrefix.split('/')[-1] 
+  else:
+    print('Warning: using default input prefix: {:s}'.format(inputPrefix))
+  if 'startFrame' in event:
+    startFrame = event['startFrame']
+  else:
+    print('Warning: default startFrame: {:d}'.format(startFrame))
+  if 'outputBatchSize' in event:
+    outputBatchSize = event['outputBatchSize']
+  else:
+    print('Warning: default batch size: {:d}'.format(outputBatchSize))
+  
+  protoPath, binPath = download_input_from_s3(inputBucket, inputPrefix, 
+                                              startFrame)
+
+  try:
+    try:
+      if not convert_to_jpegs(protoPath, binPath):
+        raise Exception('Failed to decode video chunk {:d}'.format(startFrame))
+    finally:
+      shutil.rmtree(LOCAL_INPUT_DIR)
+
+    if outputBatchSize > 1:
+      combine_output_files(outputBatchSize)
+
+    fileCount, totalSize = upload_output_to_s3(outputBucket, outputPrefix)
+  finally:
+    if not DEFAULT_KEEP_OUTPUT:
+      shutil.rmtree(TEMP_OUTPUT_DIR)
+  
+  out = {
+    'statusCode': 200,
+    'body': {
+      'fileCount': fileCount,
+      'totalSize': totalSize
+    }
+  }
+  print out
+  return out
+
+
+if __name__ == '__main__':
+  inputBucket = 'vass-video-samples2'
+  inputPrefix = 'protobin/example3_134'
+  startFrame = 0
+  outputBatchSize = 50
+
+  if (len(sys.argv) > 1):
+    startFrame = int(sys.argv[1])
+
+  event = {
+    'inputBucket': inputBucket,
+    'inputPrefix': inputPrefix,
+    'startFrame': startFrame,
+    'outputBatchSize': outputBatchSize
+  }
+  print event
+
+  out = handler(event, {})
+  print out
