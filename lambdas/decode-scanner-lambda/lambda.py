@@ -33,7 +33,7 @@ def list_output_files():
   outputFiles = [
     x for x in os.listdir(TEMP_OUTPUT_DIR) if x.endswith(fileExt)
   ]
-  return sorted(outputFiles)
+  return outputFiles
 
 def many_files_to_one(inPaths, outPath):
   with open(outPath, 'wb') as ofs:
@@ -48,7 +48,7 @@ def many_files_to_one(inPaths, outPath):
         ofs.write(data)
   print 'Wrote', outPath
 
-def combine_output_files(outputBatchSize):
+def combine_output_files(startFrame, outputBatchSize):
   def encode_batch(batch):
     inputFilePaths = [
       os.path.join(TEMP_OUTPUT_DIR, x) for x in batch
@@ -60,15 +60,23 @@ def combine_output_files(outputBatchSize):
     for filePath in inputFilePaths:
       os.remove(filePath)
 
+  # Guarantee the sequence and order! otherwise, "20" > "100" because of
+  # the character order
   currentBatch = []
-  for fileName in list_output_files():
-    currentBatch.append(fileName)
-    if len(currentBatch) == outputBatchSize:
-      encode_batch(currentBatch)
-      currentBatch = []
-
-  if len(currentBatch) > 0: 
+  outputFiles = list_output_files()
+  totalNum = len(outputFiles)
+  remain = totalNum
+  for currStart in xrange(startFrame, startFrame + totalNum, outputBatchSize):
+    currEnd = min(remain, outputBatchSize) + currStart
+    for idx in xrange(currStart, currEnd):
+      fileName = 'frame{:d}.jpg'.format(idx)
+      if fileName not in outputFiles:
+        print('ERROR: Cannot find file: {:s}'.format(fileName))
+        exit()
+      currentBatch.append(fileName)
     encode_batch(currentBatch)
+    currentBatch = []
+    remain -= outputBatchSize
 
 def download_input_from_s3(bucketName, inputPrefix, startFrame):
   def download_s3(s3Path, localPath):
@@ -223,7 +231,7 @@ def handler(event, context):
       shutil.rmtree(LOCAL_INPUT_DIR)
 
     if outputBatchSize > 1:
-      combine_output_files(outputBatchSize)
+      combine_output_files(startFrame, outputBatchSize)
 
     fileCount, totalSize = upload_output_to_s3(outputBucket, outputPrefix)
   finally:
@@ -243,7 +251,7 @@ def handler(event, context):
 
 if __name__ == '__main__':
   inputBucket = 'vass-video-samples2'
-  inputPrefix = 'protobin/example3_134'
+  inputPrefix = 'protobin/example3_135'
   startFrame = 0
   outputBatchSize = 50
 
