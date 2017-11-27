@@ -220,13 +220,13 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
   upload_prefix = UPLOAD_PREFIX + '/' + video_prefix
 
   if load_to_disk == True:
-    # # Upload all .proto files
-    # fileCount, totalSize = upload_output_to_s3(
-    #   UPLOAD_BUCKET, upload_prefix, PROTO_EXT)
+    # Upload all .proto files
+    fileCount, totalSize = upload_output_to_s3(
+      UPLOAD_BUCKET, upload_prefix, PROTO_EXT)
 
-    # # Upload all .bin files
-    # fileCount, totalSize = upload_output_to_s3(
-    #   UPLOAD_BUCKET, upload_prefix, BIN_EXT)
+    # Upload all .bin files
+    fileCount, totalSize = upload_output_to_s3(
+      UPLOAD_BUCKET, upload_prefix, BIN_EXT)
 
     # Call Lambdas to decode, provide Bucket Name, File Prefix, Start Frame
     for start_frame in xrange(0, num_rows, WORK_PACKET_SIZE):
