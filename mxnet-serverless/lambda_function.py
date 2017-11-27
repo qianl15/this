@@ -388,7 +388,7 @@ def lambda_s3_batch_handler(event, context):
   inputKey = 'batch-test/1901+100.jpg'
   batchSize = 10 # the batch passed to MXNet, cannot be passed through s3 event
   outputBucket = 'vass-video-samples2-results'
-  outputKey = 'mxnet-results/1901+100.out'
+  outputKey = 'mxnet-results/1901-100.out'
 
   timelist = "{"
   start = now()
@@ -403,9 +403,11 @@ def lambda_s3_batch_handler(event, context):
     inputBucket = html_parser.unescape(record['s3']['bucket']['name'])
     inputKey = html_parser.unescape(record['s3']['object']['key'])
     outputBucket = inputBucket + "-results"
-    outputKey = inputKey.split(".")[0].split("/")[-1] + '.out'
-    outputKey = DEFAULT_OUT_FOLDER + outputKey
+    # outputKey = inputKey.split(".")[0].split("/")[-1] + '.out'
+    tmpKeyList = inputKey.split(".")[0].split("/")[-2:]
+    outputKey = DEFAULT_OUT_FOLDER + '/'.join(tmpKeyList) + '.out'
     
+    print('Outputkey is: {}'.format(outputKey))
     start = now()
     download_input_from_s3(inputBucket, inputKey, LOCAL_IMG_PATH)
     end = now()
