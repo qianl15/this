@@ -20,7 +20,7 @@ from urllib import urlretrieve
 import boto3
 import botocore
 from multiprocessing.pool import ThreadPool
-from threading import Semaphore
+from threading import Semaphore, Lock
 import progressbar
 
 import logging
@@ -57,12 +57,15 @@ def list_output_files(outputDir = './', fileExt = None):
   return sorted(outputFiles)
 
 # Upload all files with certain extension to a bucket
+uploadFileCount = 0
 def upload_output_to_s3(bucketName, filePrefix, fileExt):
   print('Uploading files to s3: {:s}/{:s}'.format(bucketName, filePrefix))
   s3 = boto3.client('s3', config=botocore.client.Config(
     max_pool_connections=MAX_PARALLEL_UPLOADS))
-
-  count = 0
+  
+  global uploadFileCount
+  uploadFileCount = 0
+  countLock = Lock()
   totalSize = 0
   results = []
 
@@ -88,6 +91,10 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
       # print 'Done: %s' % localFilePath
     finally:
       sema.release()
+      with countLock:
+        global uploadFileCount
+        uploadFileCount += 1
+        bar.update(uploadFileCount)
 
   for fileName in list_output_files(DEFAULT_OUTPUT_DIR, fileExt):
     localFilePath = os.path.join(DEFAULT_OUTPUT_DIR, fileName)
@@ -99,19 +106,17 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
     results.append(result)
 
     totalSize += fileSize
-
+    
   # block until all threads are done
   for result in results:
     result.get()
-    count += 1
-    bar.update(count)
 
   # block until all uploads are finished
   for _ in xrange(MAX_PARALLEL_UPLOADS):
     sema.acquire()
   bar.finish()
 
-  print 'Uploaded %d files to S3 [total=%dKB]' % (count, totalSize >> 10)
+  print 'Uploaded %d files to S3 [total=%dKB]' % (uploadFileCount, totalSize >> 10)
 
   if DEFAULT_KEEP_OUTPUT == False:
     print('Deleting local output files...')
@@ -119,7 +124,7 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
       localFilePath = os.path.join(DEFAULT_OUTPUT_DIR, fileName)
       # print localFilePath
       os.remove(fileName)
-  return (count, totalSize)
+  return (uploadFileCount, totalSize)
 
 
 def invoke_decoder_lambda(bucketName, filePrefix, startFrame, batchSize):
