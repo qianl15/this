@@ -21,6 +21,7 @@ import boto3
 import botocore
 from multiprocessing.pool import ThreadPool
 from threading import Semaphore
+import progressbar
 
 import logging
 logging.getLogger('boto3').setLevel(logging.WARNING)
@@ -49,7 +50,7 @@ def list_output_files(outputDir = './', fileExt = None):
     print('Please provide file extension: e.g., .jpg, .bin')
     exit()
   fileExt = '.{0}'.format(fileExt)
-  print('output dir: {:s}, fileExt: {:s}'.format(outputDir, fileExt))
+  # print('output dir: {:s}, fileExt: {:s}'.format(outputDir, fileExt))
   outputFiles = [
     x for x in os.listdir(outputDir) if x.endswith(fileExt)
   ]
@@ -68,16 +69,23 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
   pool = ThreadPool(MAX_PARALLEL_UPLOADS)
   sema = Semaphore(MAX_PARALLEL_UPLOADS)
 
+  maxval = sum(1 for _ in list_output_files(DEFAULT_OUTPUT_DIR, fileExt))
+
+  bar = progressbar.ProgressBar(maxval=maxval, \
+    widgets=[progressbar.Bar('=', 'Uploaded  [', ']'), ' ',
+             progressbar.Percentage()])
+  bar.start()
+
   def upload_file(localFilePath, uploadFileName, fileSize):
 
     sema.acquire()
     try:
-      print 'Start: %s [%dKB]' % (localFilePath, fileSize >> 10)
+      # print 'Start: %s [%dKB]' % (localFilePath, fileSize >> 10)
       with open(localFilePath, 'rb') as ifs:
         s3.put_object(Body=ifs, Bucket=bucketName,
           Key=uploadFileName,
           StorageClass='REDUCED_REDUNDANCY')
-      print 'Done: %s' % localFilePath
+      # print 'Done: %s' % localFilePath
     finally:
       sema.release()
 
@@ -90,16 +98,18 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
       args=(localFilePath, uploadFileName, fileSize))
     results.append(result)
 
-    count += 1
     totalSize += fileSize
 
   # block until all threads are done
   for result in results:
     result.get()
+    count += 1
+    bar.update(count)
 
   # block until all uploads are finished
   for _ in xrange(MAX_PARALLEL_UPLOADS):
     sema.acquire()
+  bar.finish()
 
   print 'Uploaded %d files to S3 [total=%dKB]' % (count, totalSize >> 10)
 
@@ -107,7 +117,7 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
     print('Deleting local output files...')
     for fileName in list_output_files(DEFAULT_OUTPUT_DIR, fileExt):
       localFilePath = os.path.join(DEFAULT_OUTPUT_DIR, fileName)
-      print localFilePath
+      # print localFilePath
       os.remove(fileName)
   return (count, totalSize)
 
@@ -136,19 +146,23 @@ def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
   s3 = boto3.resource('s3') # for method 1, 3
   # s3 = boto3.client('s3') # for method 2
   outputBucket = DOWNLOAD_BUCKET
-  startTime = now()
-  timeOut = startTime + TIMEOUT_SECONDS
+  # remain = numRows
+  # for currStart in xrange(startFrame, numRows, batch):
+  #   currEnd = min(remain, batch)
+  #   outputKey = '{}/{}_{}_{}/frame{}-{}.out'.format(DOWNLOAD_PREFIX, 
+  #     videoPrefix, WORK_PACKET_SIZE, batch, currStart, currEnd)
+  #   fileLists.append(outputKey)
+  #   remain -= batch
 
-  remain = numRows
-  for currStart in xrange(startFrame, numRows, batch):
-    currEnd = min(remain, batch)
-    outputKey = '{}/{}_{}/frame{}-{}.out'.format(DOWNLOAD_PREFIX, videoPrefix,
-      batch, currStart, currEnd)
-    fileLists.append(outputKey)
-    remain -= batch
+  bar = progressbar.ProgressBar(maxval=totalCount, \
+    widgets=[progressbar.Bar('=', 'Files     [', ']'), ' ', 
+             progressbar.Percentage()])
+  bar.start()
 
   fileCount = 0
   time.sleep(10.0) # sleep for 10 seconds to wait for decoder finished!
+  startTime = now()
+  timeOut = startTime + TIMEOUT_SECONDS
   while fileCount < totalCount:
     # for outputKey in fileLists:
       # method 1: load object
@@ -181,9 +195,12 @@ def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
 
     # method 3: list the number of objects
     myBucket = s3.Bucket(DOWNLOAD_BUCKET)
-    currCount = sum(1 for _ in myBucket.objects.filter(Prefix='{}/{}/'.format(DOWNLOAD_PREFIX, videoPrefix)))
+    currCount = sum(1 for _ in myBucket.objects.filter(
+      Prefix='{}/{}_{}_{}/'.format(DOWNLOAD_PREFIX, videoPrefix, 
+                                   WORK_PACKET_SIZE, batch)))
     fileCount = currCount
-    print('fileCount is: {:d}'.format(fileCount))
+    # print('fileCount is: {:d}'.format(fileCount))
+    bar.update(fileCount)
     if fileCount >= totalCount:
       break
 
@@ -194,6 +211,7 @@ def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
     # if currTime >= timeOut:
     #   break
     time.sleep(0.1)
+  bar.finish()
   return fileCount
 
 # choose which video we wanted to download, and the format
@@ -285,7 +303,8 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
   # extract video name
   videoPrefix = test_video_path.split(".")[-2].split("/")[-1]
   print('video name is: {:s}'.format(videoPrefix))
-  uploadPrefix = UPLOAD_PREFIX + '/' + videoPrefix
+  # uploadPrefix = UPLOAD_PREFIX + '/' + videoPrefix
+  uploadPrefix = UPLOAD_PREFIX + '/{}_{}'.format(videoPrefix, WORK_PACKET_SIZE)
 
   if load_to_disk == True:
     # Upload all .proto files
@@ -298,8 +317,14 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
 
     # Call Lambdas to decode, provide Bucket Name, File Prefix, Start Frame
     # Then decoder Lambdas will write to S3, which will trigger MXNet Lambdas
+    lambdaTotalCount = len(xrange(0, num_rows, WORK_PACKET_SIZE))
+    bar = progressbar.ProgressBar(maxval=lambdaTotalCount, \
+          widgets=[progressbar.Bar('=', 'Lambdas   [', ']'), ' ',
+                   progressbar.Percentage()])
+    bar.start()
+    lambdaCount = 0
     for startFrame in xrange(0, num_rows, WORK_PACKET_SIZE):
-      print("Invoke lambda for start frame {:d}".format(startFrame))
+      # print("Invoke lambda for start frame {:d}".format(startFrame))
       result = invoke_decoder_lambda(UPLOAD_BUCKET, uploadPrefix, 
                                      startFrame, batch)
       if not result:
@@ -309,11 +334,42 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
         if not res:
           print('Frame {:d} still failed, exit'.format(startFrame))
           exit()
-
+      lambdaCount += 1
+      bar.update(lambdaCount)
+    bar.finish()
+    assert(lambdaCount == lambdaTotalCount)
+    print('Triggered #{} Lambdas'.format(lambdaCount))
     # Wait until all output files appear
     fileCount = wait_until_all_finished(0, num_rows, batch, videoPrefix)
     assert(fileCount == len(xrange(0, num_rows, batch)))
     print('Finished! collected {:d} files!'.format(fileCount))
+
+def ensure_clean_state(test_video_path, batch):
+  print('Cleaning the folder')
+  for fileName in list_output_files(DEFAULT_OUTPUT_DIR, PROTO_EXT):
+      localFilePath = os.path.join(DEFAULT_OUTPUT_DIR, fileName)
+      print('CLeaning: {}'.format(localFilePath))
+      os.remove(fileName)
+
+  for fileName in list_output_files(DEFAULT_OUTPUT_DIR, BIN_EXT):
+      localFilePath = os.path.join(DEFAULT_OUTPUT_DIR, fileName)
+      print('CLeaning: {}'.format(localFilePath))
+      os.remove(fileName)
+
+  
+  videoPrefix = test_video_path.split(".")[-2].split("/")[-1]
+  print('Cleaning S3 bucket: {}/{}/{}_{}_{}/'.format(DOWNLOAD_BUCKET, 
+    DOWNLOAD_PREFIX, videoPrefix, WORK_PACKET_SIZE, batch))
+  s3 = boto3.resource('s3')
+  myBucket = s3.Bucket(DOWNLOAD_BUCKET)
+  fileCount = 0
+  for obj in myBucket.objects.filter(
+      Prefix='{}/{}_{}_{}/'.format(DOWNLOAD_PREFIX, videoPrefix, 
+                                   WORK_PACKET_SIZE, batch)):
+    s3.Object(myBucket.name, obj.key).delete()
+    fileCount += 1
+
+  print('Deleted {} files'.format(fileCount))
 
 if __name__ == '__main__':
   num = 1 # which video
@@ -352,6 +408,7 @@ if __name__ == '__main__':
   print('Batch {:d}, #{:d} video, #{:d} format, outdir: {}'.format(batch, 
     num, fm_num, out_dir))
 
+  ensure_clean_state(test_video_path, batch)
   start = now()
   start_mxnet_pipeline(test_video_path, out_dir, batch, load_to_disk)
   stop = now()
