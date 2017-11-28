@@ -15,8 +15,6 @@ DECODER_PATH = '/tmp/DecoderAutomataCmd-static'
 TEMP_OUTPUT_DIR = '/tmp/output'
 LOCAL_INPUT_DIR = '/tmp/input'
 
-shutil.copy('DecoderAutomataCmd-static', DECODER_PATH)
-os.chmod(DECODER_PATH, 0o755)
 
 # os.environ['LD_LIBRARY_PATH'] = '$%s:%s/scanner/' % (os.environ['LD_LIBRARY_PATH'], os.getcwd())
 DEFAULT_LOG_LEVEL = 'warning'
@@ -46,6 +44,7 @@ def many_files_to_one(inPaths, outPath):
         ofs.write(fileName)
         ofs.write(struct.pack('I', dataLen))
         ofs.write(data)
+      os.remove(filePath) # delete here!
   print 'Wrote', outPath
 
 def combine_output_files(startFrame, outputBatchSize):
@@ -57,8 +56,8 @@ def combine_output_files(startFrame, outputBatchSize):
     outputFilePath = os.path.join(
       TEMP_OUTPUT_DIR, '%s-%d%s' % (name, len(batch), ext))
     many_files_to_one(inputFilePaths, outputFilePath)
-    for filePath in inputFilePaths:
-      os.remove(filePath)
+    # for filePath in inputFilePaths:
+    #   os.remove(filePath)
 
   # Guarantee the sequence and order! otherwise, "20" > "100" because of
   # the character order
@@ -174,6 +173,10 @@ def ensure_clean_state():
   if not os.path.exists(LOCAL_INPUT_DIR):
     os.mkdir(LOCAL_INPUT_DIR)
 
+  if os.path.exists(DECODER_PATH):
+    os.remove(DECODER_PATH)
+  shutil.copy('DecoderAutomataCmd-static', DECODER_PATH)
+  os.chmod(DECODER_PATH, 0o755)
 
 def convert_to_jpegs(protoPath, binPath):
   assert(os.path.exists(TEMP_OUTPUT_DIR))
