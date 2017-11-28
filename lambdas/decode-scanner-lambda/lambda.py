@@ -208,7 +208,7 @@ def handler(event, context):
   if 'inputPrefix' in event:
     inputPrefix = event['inputPrefix']
     # get the video name!
-    outputPrefix = outputPrefix + '/' + inputPrefix.split('/')[-1] 
+    # outputPrefix = outputPrefix + '/' + inputPrefix.split('/')[-1] 
   else:
     print('Warning: using default input prefix: {:s}'.format(inputPrefix))
   if 'startFrame' in event:
@@ -219,7 +219,9 @@ def handler(event, context):
     outputBatchSize = event['outputBatchSize']
   else:
     print('Warning: default batch size: {:d}'.format(outputBatchSize))
-  
+
+  outputPrefix = outputPrefix + '/{}_{}'.format(inputPrefix.split('/')[-1], 
+                                                outputBatchSize)
   protoPath, binPath = download_input_from_s3(inputBucket, inputPrefix, 
                                               startFrame)
 

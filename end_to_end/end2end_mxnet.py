@@ -26,7 +26,7 @@ import logging
 logging.getLogger('boto3').setLevel(logging.WARNING)
 logging.getLogger('botocore').setLevel(logging.WARNING)
 
-WORK_PACKET_SIZE = 250  # how many frames to decode together
+WORK_PACKET_SIZE = 50  # how many frames to decode together
 BATCH_SIZE = 50 # how many frames to be evaluated together
 DEFAULT_KEEP_OUTPUT = False
 MAX_PARALLEL_UPLOADS = 20
@@ -133,44 +133,71 @@ def invoke_decoder_lambda(bucketName, filePrefix, startFrame, batchSize):
 def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
   fileLists = []
   totalCount = len(xrange(startFrame, numRows, batch))
-  s3 = boto3.resource('s3')
+  s3 = boto3.resource('s3') # for method 1, 3
+  # s3 = boto3.client('s3') # for method 2
   outputBucket = DOWNLOAD_BUCKET
   startTime = now()
   timeOut = startTime + TIMEOUT_SECONDS
 
-  time.sleep(10.0) # sleep for 10 seconds to wait for decoder finished!
-  while len(fileLists) < totalCount:
-    remain = numRows
-    for currStart in xrange(startFrame, numRows, batch):
-      currEnd = min(remain, batch)
-      outputKey = '{}/{}/frame{}-{}.out'.format(DOWNLOAD_PREFIX, videoPrefix,
-       currStart, currEnd)
-      if outputKey not in fileLists:
-        # print('Testing outputKey {}'.format(outputKey))
-        try:
-          s3.Object(outputBucket, outputKey).load()
-        except botocore.exceptions.ClientError as e:
-          if e.response['Error']['Code'] == "404":
-              pass
-          else:
-              # Something else has gone wrong.
-              raise
-        else:
-          print('Output file {} found!'.format(outputKey))
-          fileLists.append(outputKey)
+  remain = numRows
+  for currStart in xrange(startFrame, numRows, batch):
+    currEnd = min(remain, batch)
+    outputKey = '{}/{}_{}/frame{}-{}.out'.format(DOWNLOAD_PREFIX, videoPrefix,
+      batch, currStart, currEnd)
+    fileLists.append(outputKey)
+    remain -= batch
 
-      remain -= batch
-      currTime = now()
-      if currTime >= timeOut:
-        print('Timed out in {:.4f} sec, cannot finish.'.format(currTime - startTime))
-        break
-    if currTime >= timeOut:
+  fileCount = 0
+  time.sleep(10.0) # sleep for 10 seconds to wait for decoder finished!
+  while fileCount < totalCount:
+    # for outputKey in fileLists:
+      # method 1: load object
+      # try:
+      #   s3.Object(outputBucket, outputKey).load()
+      # except botocore.exceptions.ClientError as e:
+      #   if e.response['Error']['Code'] == "404":
+      #     pass
+      #   else:
+      #     # Something else has gone wrong.
+      #     raise
+      # else:
+      #   print('Output file {} found!'.format(outputKey))
+      #   fileLists.remove(outputKey)
+      #   fileCount += 1
+
+      # method 2: head_object
+      # try:
+      #   s3.head_object(Bucket=outputBucket, Key=outputKey)
+      # except botocore.exceptions.ClientError as e:
+      #   if e.response['Error']['Code'] == "404":
+      #     print('Cannot find file {}'.format(outputKey))
+      #   else:
+      #     # Something else has gone wrong.
+      #     raise
+      # else:
+      #   print('Output file {} found!'.format(outputKey))
+      #   fileLists.remove(outputKey)
+      #   fileCount += 1
+
+    # method 3: list the number of objects
+    myBucket = s3.Bucket(DOWNLOAD_BUCKET)
+    currCount = sum(1 for _ in myBucket.objects.filter(Prefix='{}/{}/'.format(DOWNLOAD_PREFIX, videoPrefix)))
+    fileCount = currCount
+    print('fileCount is: {:d}'.format(fileCount))
+    if fileCount >= totalCount:
       break
 
-  return len(fileLists)
+    currTime = now()
+    if currTime >= timeOut:
+      print('Timed out in {:.4f} sec, cannot finish.'.format(currTime - startTime))
+      break
+    # if currTime >= timeOut:
+    #   break
+    time.sleep(0.1)
+  return fileCount
 
 # choose which video we wanted to download, and the format
-# format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
+# format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p, 138 = 4k
 # By default, we download the third video with the lowest quality
 # batch - number of frames to do in a MXNet Lambda
 def start_mxnet_pipeline(test_video_path='videos/example.mp4', 

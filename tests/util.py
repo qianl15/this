@@ -26,7 +26,7 @@ def get_md5(filePath):
 
 # default: download the lowest quality of the first video
 def download_video1(num = 1, fm_num = 1):
-   # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
+   # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p, 138 = 4k
   if fm_num == 1:
     format = '134'
   elif fm_num == 2:
@@ -35,8 +35,10 @@ def download_video1(num = 1, fm_num = 1):
     format = '136'
   elif fm_num == 4:
     format = '137'
+  elif fm_num == 5:
+    format = '138'
   else:
-    print('Please select the format between 1~4')
+    print('Please select the format between 1~5')
     exit()
 
   VID_PATH = "/tmp/example%d_%s.mp4"%(num, format)
