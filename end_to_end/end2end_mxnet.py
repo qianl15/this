@@ -45,6 +45,8 @@ OUT_EXT = 'out'
 
 TIMEOUT_SECONDS = 300.0 # maximum wait time
 
+timelist = "{"
+
 def list_output_files(outputDir = './', fileExt = None):
   if fileExt == None:
     print('Please provide file extension: e.g., .jpg, .bin')
@@ -256,6 +258,8 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
     delta = stop - start
     print('Time to ingest videos: {:.4f}s, fps: {:.4f}'.format(
       delta, input_table.num_rows() / delta))
+    timelist += '"ingest-video" : %f,' % (delta)
+
     num_rows = input_table.num_rows()
     print('Number of frames in movie: {:d}'.format(num_rows))
     
@@ -283,9 +287,10 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
     stop = now()
     delta = stop - start
     print('Batch: {:d} End-to-end Python Kernel time: {:.4f}s, {:.1f} fps\n'.format(batch, delta, input_table.num_rows() / delta))
+    timelist += '"scanner-execution" : %f,' % (delta)
 
-    output_table.profiler().write_trace(
-      out_dir + 'end2end_{:d}.trace'.format(batch))
+    # output_table.profiler().write_trace(
+    #   out_dir + 'end2end_{:d}.trace'.format(batch))
 
     # If not load_to_disk, then it does not go to the next part
     if load_to_disk == False:
@@ -313,15 +318,21 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
 
   if load_to_disk == True:
     # Upload all .proto files
+    start = now()
     fileCount, totalSize = upload_output_to_s3(
       UPLOAD_BUCKET, uploadPrefix, PROTO_EXT)
 
     # Upload all .bin files
     fileCount, totalSize = upload_output_to_s3(
       UPLOAD_BUCKET, uploadPrefix, BIN_EXT)
+    stop = now()
+    delta = stop - start
+    print('Upload to S3 time: {:.4f} s'.format(delta))
+    timelist += '"upload-s3" : %f,' % (delta)
 
     # Call Lambdas to decode, provide Bucket Name, File Prefix, Start Frame
     # Then decoder Lambdas will write to S3, which will trigger MXNet Lambdas
+    start = now()
     lambdaTotalCount = len(xrange(0, num_rows, WORK_PACKET_SIZE))
     bar = progressbar.ProgressBar(maxval=lambdaTotalCount, \
           widgets=[progressbar.Bar('=', 'Lambdas   [', ']'), ' ',
@@ -342,8 +353,12 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
       lambdaCount += 1
       bar.update(lambdaCount)
     bar.finish()
+    stop = now()
+    delta = stop - start
     assert(lambdaCount == lambdaTotalCount)
-    print('Triggered #{} Lambdas'.format(lambdaCount))
+    print('Triggered #{} Lambdas, time {:.4f} s'.format(lambdaCount, delta))
+    timelist += '"invoke-lambda" : %f,' % (delta)
+
     # Wait until all output files appear
     fileCount = wait_until_all_finished(0, num_rows, batch, videoPrefix)
     assert(fileCount == len(xrange(0, num_rows, batch)))
@@ -417,4 +432,8 @@ if __name__ == '__main__':
   start = now()
   start_mxnet_pipeline(test_video_path, out_dir, batch, load_to_disk)
   stop = now()
-  print('Total pipeline time is: {:.4f} s'.format(stop - start))
+  delta = stop - start
+  print('Total pipeline time is: {:.4f} s'.format(delta))
+  timelist += '"total-time" : %f' % (delta)
+  timelist += "}"
+  print 'Timelist:' + json.dumps(timelist)
