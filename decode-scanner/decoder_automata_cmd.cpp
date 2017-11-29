@@ -81,11 +81,14 @@ namespace internal {
     encode_params.push_back(CV_IMWRITE_JPEG_QUALITY);
     encode_params.push_back(100);
     size_t total_size = 0;
+    int first_frame = -1;
     for (i64 i = 0; i < loadedDecodeArgs.valid_frames().size(); ++i) {
       decoder->get_frames(frame_buffer.data(), 1);
       int ind = loadedDecodeArgs.valid_frames()[i];
       std::string ind_str = std::to_string(ind);
-
+      if (first_frame == -1) {
+        first_frame = ind;
+      }
       const scanner::Frame* frame = new Frame(frame_info, frame_buffer.data());
       cv::Mat img = scanner::frame_to_mat(frame);
       std::vector<u8> buf;
@@ -105,14 +108,16 @@ namespace internal {
           ind, str_encode.size() / 1024);
         exit(-1);
       }
-      printf("Save frame%d.jpg to disk, size %lu KB\n", 
-              ind, str_encode.size() / 1024);
+      // printf("Save frame%d.jpg to disk, size %lu KB\n", 
+      //         ind, str_encode.size() / 1024);
       total_size += str_encode.size();
       delete frame;
     }
 
-    printf("# %lu Files. Total size is: %lu MB\n", 
-           loadedDecodeArgs.valid_frames().size(), total_size / (1024 * 1024));
+    printf("Decoder generated # %lu files from frame %d. Total size is: %lu MB\n",
+           loadedDecodeArgs.valid_frames().size(), 
+           first_frame,
+           total_size / (1024 * 1024));
     delete decoder;
     // delete storage;
     destroy_memory_allocators();
