@@ -48,4 +48,4 @@
 *.swp
 
 *output_file
-
+*.gz

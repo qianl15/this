@@ -17,7 +17,7 @@ from timeit import default_timer as now
 import math
 from urllib import urlretrieve
 
-WORK_PACKET_SIZE = 50
+WORK_PACKET_SIZE = 250
 # choose which video we wanted to download, and the format
 # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
 # By default, we download the third video with the lowest quality
@@ -76,29 +76,29 @@ def test_pymxnet(num = 3, fm_num = 1, out_dir = './', batch = 1):
       }
     )
     bulk_job = BulkJob(output=output_op, jobs=[job])
-    [output_table] = db.run(bulk_job, force=True, profiling=True, pipeline_instances_per_node=1, work_packet_size=WORK_PACKET_SIZE)
+    [output_table] = db.run(bulk_job, force=True, profiling=False, pipeline_instances_per_node=1, work_packet_size=WORK_PACKET_SIZE)
 
     stop = now()
     delta = stop - start
     print('Batch: {:d} Python MXNet time: {:.4f}s, {:.1f} fps\n'.format(
         batch, delta, input_table.num_rows() / delta))
 
-    output_table.profiler().write_trace(
-      out_dir + 'test_pymxnet_{:d}_{:d}.trace'.format(num, fm_num))
+    # output_table.profiler().write_trace(
+    #   out_dir + 'test_pymxnet_{:d}_{:d}_{:d}.trace'.format(num, fm_num, batch))
 
-    video_classes = output_table.load(['class'], parsers.classes)
+    # video_classes = output_table.load(['class'], parsers.classes)
 
     # Loop over the column's rows. Each row is a tuple of the frame number and
     # value for that row.
-    num_rows = 0
-    for (frame_index, frame_classes) in video_classes:
-      assert len(frame_classes) == 1
-      assert frame_classes[0].shape[0] == 1
-      print(frame_classes[0])
-      num_rows += 1
-    assert num_rows == db.table('test_pymxnet_raw').num_rows()
+    # num_rows = 0
+    # for (frame_index, frame_classes) in video_classes:
+      # assert len(frame_classes) == 1
+      # assert frame_classes[0].shape[0] == 1
+      # print(frame_classes[0])
+      # num_rows += 1
+    # assert num_rows == db.table('test_pymxnet_raw').num_rows()
 
-    print(db.summarize())
+    # print(db.summarize())
 
 if __name__ == '__main__':
   num = 1 # which video
