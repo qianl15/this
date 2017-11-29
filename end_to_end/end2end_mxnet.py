@@ -23,6 +23,7 @@ from multiprocessing.pool import ThreadPool
 from threading import Semaphore, Lock
 import progressbar
 import json
+from collections import OrderedDict
 
 import logging
 logging.getLogger('boto3').setLevel(logging.WARNING)
@@ -46,7 +47,7 @@ OUT_EXT = 'out'
 
 TIMEOUT_SECONDS = 300.0 # maximum wait time
 
-timelist = "{"
+timelist = OrderedDict()
 
 def list_output_files(outputDir = './', fileExt = None):
   if fileExt == None:
@@ -260,7 +261,8 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
     delta = stop - start
     print('Time to ingest videos: {:.4f}s, fps: {:.4f}'.format(
       delta, input_table.num_rows() / delta))
-    timelist += '"ingest-video" : %f,' % (delta)
+    # timelist += '"ingest-video" : %f,' % (delta)
+    timelist["ingest-video"] = delta
 
     num_rows = input_table.num_rows()
     print('Number of frames in movie: {:d}'.format(num_rows))
@@ -289,7 +291,8 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
     stop = now()
     delta = stop - start
     print('Batch: {:d} End-to-end Python Kernel time: {:.4f}s, {:.1f} fps\n'.format(batch, delta, input_table.num_rows() / delta))
-    timelist += '"scanner-execution" : %f,' % (delta)
+    # timelist += '"scanner-execution" : %f,' % (delta)
+    timelist["scanner-execution"] = delta
 
     # output_table.profiler().write_trace(
     #   out_dir + 'end2end_{:d}.trace'.format(batch))
@@ -330,7 +333,8 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
     stop = now()
     delta = stop - start
     print('Upload to S3 time: {:.4f} s'.format(delta))
-    timelist += '"upload-s3" : %f,' % (delta)
+    # timelist += '"upload-s3" : %f,' % (delta)
+    timelist["upload-s3"] = delta
 
     # Call Lambdas to decode, provide Bucket Name, File Prefix, Start Frame
     # Then decoder Lambdas will write to S3, which will trigger MXNet Lambdas
@@ -359,7 +363,8 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
     delta = stop - start
     assert(lambdaCount == lambdaTotalCount)
     print('Triggered #{} Lambdas, time {:.4f} s'.format(lambdaCount, delta))
-    timelist += '"invoke-lambda" : %f,' % (delta)
+    # timelist += '"invoke-lambda" : %f,' % (delta)
+    timelist["invoke-lambda"] = delta
 
     # Wait until all output files appear
     fileCount = wait_until_all_finished(0, num_rows, batch, videoPrefix)
@@ -439,9 +444,10 @@ if __name__ == '__main__':
   delta = stop - start
   print('Total pipeline time is: {:.4f} s'.format(delta))
 
-  timelist += '"total-time" : %f' % (delta)
-  timelist += "}"
-  outString = 'Timelist:' + json.dumps(timelist)
+  # timelist += '"total-time" : %f' % (delta)
+  # timelist += "}"
+  timelist["total-time"] = delta
+  outString = "Timelist:" + json.dumps(timelist)
   print outString
 
   outFile = '{}/end2end_{}_{}_{}_{}.out'.format(out_dir, num, fm_num, 

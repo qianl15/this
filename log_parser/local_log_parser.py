@@ -68,7 +68,8 @@ def parse_line(line, stats):
   if 'Timelist:' in line:
     try:
       _, timelist = line.split('Timelist:', 1)
-      timelistObj = json.loads(json.loads(timelist.strip()))
+      # timelistObj = json.loads(json.loads(timelist.strip()))
+      timelistObj = json.loads(timelist)
       for k, v in timelistObj.iteritems():
         stats.record_key_value(k, v)
     except Exception as e:
