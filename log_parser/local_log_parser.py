@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ######################################################
 # -*- coding: utf-8 -*-
-# File Name: local_parser.py
+# File Name: local_log_parser.py
 # Author: James Hong & Qian Li
 # Created Date: 2017-10-28
 # Description: Parse local logs

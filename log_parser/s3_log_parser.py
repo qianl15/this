@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ######################################################
 # -*- coding: utf-8 -*-
-# File Name: parse_logs.py
+# File Name: s3_log_parser.py
 # Author: James Hong & Qian Li
 # Created Date: 2017-10-28
 # Description: Parse CloudWatch logs
@@ -27,6 +27,8 @@ def get_args():
             help='S3 bucket where logs files are stored')
   parser.add_argument('--prefix', '-p', type=str, required=True,
             help='S3 log files prefix')
+  parser.add_argument('--expname', '-e', type=str, required=True,
+            help='Experiment name, eg. example3_138_50_50')
   parser.add_argument('--outfile', '-o', type=str, required=True,
             help='File to save parsed output')
   return parser.parse_args()
@@ -34,12 +36,16 @@ def get_args():
 
 class StatsObject(object):
 
-  def __init__(self):
+  def __init__(self, expname):
     self.numLambdas = 0
+    self.validLambda = False
+    self.expName = expname
     self.data = OrderedDict()
 
   def incrementNumLambdas(self):
-    self.numLambdas += 1
+    if self.validLambda:
+      self.numLambdas += 1
+      self.validLambda = False
 
   def record_key_value(self, k, v):
     if k not in self.data:
@@ -71,27 +77,33 @@ class StatsObject(object):
 REPORT_RE = re.compile(r'Duration: ([\d.]+) ms[\s]+Billed Duration: (\d+) ms[\s]+Memory Size: (\d+) MB[\s]+Max Memory Used: (\d+) MB')
 
 def parse_line(line, stats):
-  if 'Timelist:' in line:
-    try:
-      _, timelist = line.split('Timelist:', 1)
-      timelistObj = json.loads(json.loads(timelist.strip()))
-      for k, v in timelistObj.iteritems():
-        stats.record_key_value(k, v)
-    except Exception as e:
-      print >> sys.stderr, e, line
+  if stats.expName in line:
+    stats.validLambda = True
+  if 'exceeded' in line:
+      stats.validLambda = False
+      print >> sys.stderr, line
+  if stats.validLambda:
+    if 'Timelist:' in line:
+      try:
+        _, timelist = line.split('Timelist:', 1)
+        timelistObj = json.loads(json.loads(timelist.strip()))
+        for k, v in timelistObj.iteritems():
+          stats.record_key_value(k, v)
+      except Exception as e:
+        print >> sys.stderr, e, line
 
-  matchObj = REPORT_RE.search(line)
-  if matchObj is not None:
-    duration = float(matchObj.group(1))
-    billedDuration = int(matchObj.group(2))
-    memorySize = int(matchObj.group(3))
-    maxMemoryUsed = int(matchObj.group(4))
+    matchObj = REPORT_RE.search(line)
+    if matchObj is not None:
+      duration = float(matchObj.group(1))
+      billedDuration = int(matchObj.group(2))
+      memorySize = int(matchObj.group(3))
+      maxMemoryUsed = int(matchObj.group(4))
 
-    stats.record_key_value('duration', duration)
-    stats.record_key_value('billed-duration', billedDuration)
-    stats.record_key_value('memory-size', memorySize)
-    stats.record_key_value('max-memory-used', maxMemoryUsed)
-    stats.incrementNumLambdas()
+      stats.record_key_value('duration', duration)
+      stats.record_key_value('billed-duration', billedDuration)
+      stats.record_key_value('memory-size', memorySize)
+      stats.record_key_value('max-memory-used', maxMemoryUsed)
+      stats.incrementNumLambdas()
 
 def ensure_clean_state():
   if os.path.exists(TEMP_INPUT):
@@ -102,8 +114,9 @@ def main(args):
 
   print >> sys.stderr, 'Bucket: ', args.bucket
   print >> sys.stderr, 'Prefix: ', args.prefix
+  print >> sys.stderr, 'Experiment: ', args.expname
 
-  stats = StatsObject()
+  stats = StatsObject(args.expname)
 
   s3 = boto3.resource('s3')
   inputBucket = args.bucket
