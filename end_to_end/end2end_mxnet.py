@@ -22,6 +22,7 @@ import botocore
 from multiprocessing.pool import ThreadPool
 from threading import Semaphore, Lock
 import progressbar
+import json
 
 import logging
 logging.getLogger('boto3').setLevel(logging.WARNING)
@@ -228,7 +229,8 @@ def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
 def start_mxnet_pipeline(test_video_path='videos/example.mp4', 
                          out_dir = './', batch = BATCH_SIZE,
                          load_to_disk = False):
-  
+  global timelist
+
   if util.have_gpu():
     device = DeviceType.GPU
     print('with GPU device!')
@@ -436,7 +438,14 @@ if __name__ == '__main__':
   stop = now()
   delta = stop - start
   print('Total pipeline time is: {:.4f} s'.format(delta))
+
   timelist += '"total-time" : %f' % (delta)
   timelist += "}"
-  print 'Timelist:' + json.dumps(timelist)
+  outString = 'Timelist:' + json.dumps(timelist)
+  print outString
+
+  outFile = '{}/end2end_{}_{}_{}_{}.out'.format(out_dir, num, fm_num, 
+    WORK_PACKET_SIZE, batch)
+  with open(outFile, 'w') as ofs:
+    ofs.write(outString)
 
