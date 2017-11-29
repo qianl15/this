@@ -17,6 +17,7 @@ from timeit import default_timer as now
 import math
 from urllib import urlretrieve
 
+WORK_PACKET_SIZE = 50
 # choose which video we wanted to download, and the format
 # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
 # By default, we download the third video with the lowest quality
@@ -75,7 +76,7 @@ def test_pymxnet(num = 3, fm_num = 1, out_dir = './', batch = 1):
       }
     )
     bulk_job = BulkJob(output=output_op, jobs=[job])
-    [output_table] = db.run(bulk_job, force=True, profiling=True, pipeline_instances_per_node=1)
+    [output_table] = db.run(bulk_job, force=True, profiling=True, pipeline_instances_per_node=1, work_packet_size=WORK_PACKET_SIZE)
 
     stop = now()
     delta = stop - start

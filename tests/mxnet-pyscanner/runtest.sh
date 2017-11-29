@@ -2,9 +2,20 @@
 
 mkdir -p pymxnet_results
 output_dir="./pymxnet_results/"
-tmp="test_3_1.out"
 
-echo mprof run --multiprocess python2 mxnet_pyscanner.py 3 1 ${output_dir}
-mprof run --multiprocess python2 mxnet_pyscanner.py 3 1 ${output_dir} >> ${tmp}
+tmp="test_3_5_10.out"
+batch=10
+
+echo mprof run --multiprocess python2 mxnet_pyscanner.py 3 5 ${output_dir} ${batch}
+mprof run --multiprocess python2 mxnet_pyscanner.py 3 5 ${output_dir} ${batch} >> ${tmp}
+mv *.dat ${output_dir}
+mv *.out ${output_dir}
+
+
+tmp="test_3_5_50.out"
+batch=50
+
+echo mprof run --multiprocess python2 mxnet_pyscanner.py 3 5 ${output_dir} ${batch}
+mprof run --multiprocess python2 mxnet_pyscanner.py 3 5 ${output_dir} ${batch} >> ${tmp}
 mv *.dat ${output_dir}
 mv *.out ${output_dir}
