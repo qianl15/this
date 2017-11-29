@@ -277,7 +277,7 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
       }
     )
     bulk_job = BulkJob(output=output_op, jobs=[job])
-    [output_table] = db.run(bulk_job, force=True, profiling=True, pipeline_instances_per_node=1, load_to_disk=load_to_disk, 
+    [output_table] = db.run(bulk_job, force=True, profiling=False, pipeline_instances_per_node=1, load_to_disk=load_to_disk, 
       work_packet_size=WORK_PACKET_SIZE)
 
     stop = now()
@@ -346,8 +346,10 @@ def start_mxnet_pipeline(test_video_path='videos/example.mp4',
     print('Triggered #{} Lambdas'.format(lambdaCount))
     # Wait until all output files appear
     fileCount = wait_until_all_finished(0, num_rows, batch, videoPrefix)
-    assert(fileCount == len(xrange(0, num_rows, batch)))
-    print('Finished! collected {:d} files!'.format(fileCount))
+    # assert(fileCount == len(xrange(0, num_rows, batch)))
+    totalCount = len(xrange(0, num_rows, batch)) 
+    print('Collected {:d} out of {:d} files, error rate: {:.4f}'.format(fileCount, totalCount, 
+        (totalCount - fileCount) * 1.0 / totalCount))
 
 def ensure_clean_state(test_video_path, batch):
   print('Cleaning the folder')
