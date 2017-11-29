@@ -10,6 +10,7 @@ from multiprocessing.pool import ThreadPool
 from threading import Semaphore
 import urllib
 from timeit import default_timer as now
+import json
 
 DECODER_PATH = '/tmp/DecoderAutomataCmd-static'
 TEMP_OUTPUT_DIR = '/tmp/output'
@@ -76,6 +77,7 @@ def combine_output_files(startFrame, outputBatchSize):
     encode_batch(currentBatch)
     currentBatch = []
     remain -= outputBatchSize
+  return totalNum
 
 def download_input_from_s3(bucketName, inputPrefix, startFrame):
   def download_s3(s3Path, localPath):
@@ -192,7 +194,12 @@ def convert_to_jpegs(protoPath, binPath):
   return rc == 0
 
 def handler(event, context):
+  timelist = "{"
+  start = now()
   ensure_clean_state()
+  end = now()
+  print('Time to prepare decoder: {:.4f} s'.format(end - start))
+  timelist += '"prepare-decoder" : %f,' % (end - start)
 
   inputBucket = 'vass-video-samples2'
   inputPrefix = 'protobin/example3_134'
@@ -225,24 +232,52 @@ def handler(event, context):
 
   outputPrefix = outputPrefix + '/{}_{}'.format(inputPrefix.split('/')[-1], 
                                                 outputBatchSize)
+
+  start = now()
   protoPath, binPath = download_input_from_s3(inputBucket, inputPrefix, 
                                               startFrame)
+  end = now()
+  print('Time to download input files: {:.4f} s'.format(end - start))
+  timelist += '"download-input" : %f,' % (end - start)
 
+  inputBatch = 0
   try:
     try:
+      start = now()
       if not convert_to_jpegs(protoPath, binPath):
         raise Exception('Failed to decode video chunk {:d}'.format(startFrame))
+      end = now()
+      print('Time to decode: {:.4f} '.format(end - start))
+      timelist += '"decode" : %f,' % (end - start)
     finally:
       shutil.rmtree(LOCAL_INPUT_DIR)
 
+    start = now()
     if outputBatchSize > 1:
-      combine_output_files(startFrame, outputBatchSize)
+      inputBatch = combine_output_files(startFrame, outputBatchSize)
+    end = now()
+    print('Time to combine output files: {:.4f} '.format(end - start))
+    timelist += '"combine-output" : %f,' % (end - start)
 
+    start = now()
     fileCount, totalSize = upload_output_to_s3(outputBucket, outputPrefix)
+    end = now()
+    if outputBatchSize == 1:
+      inputBatch = fileCount
+    print('Time to upload output files: {:.4f} '.format(end - start))
+    timelist += '"upload-output" : %f,' % (end - start)
   finally:
+    start = now()
     if not DEFAULT_KEEP_OUTPUT:
       shutil.rmtree(TEMP_OUTPUT_DIR)
+    end = now()
+    print('Time to clean output files: {:.4f} '.format(end - start))
+    timelist += '"clean-output" : %f,' % (end - start)
   
+  timelist += '"input-batch" : %d' % (inputBatch)
+  timelist += '}'
+
+  print 'Timelist:' + json.dumps(timelist)
   out = {
     'statusCode': 200,
     'body': {
@@ -250,7 +285,6 @@ def handler(event, context):
       'totalSize': totalSize
     }
   }
-  print out
   return out
 
 

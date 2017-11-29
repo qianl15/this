@@ -406,12 +406,14 @@ def lambda_s3_batch_handler(event, context):
     # outputKey = inputKey.split(".")[0].split("/")[-1] + '.out'
     tmpKeyList = inputKey.split(".")[0].split("/")[-2:]
     outputKey = DEFAULT_OUT_FOLDER + '/'.join(tmpKeyList) + '.out'
-    
     print('Outputkey is: {}'.format(outputKey))
+
     start = now()
     download_input_from_s3(inputBucket, inputKey, LOCAL_IMG_PATH)
     end = now()
-    print('Time to download input file: {:.4f} s'.format(end - start))
+    inputSize = os.path.getsize(LOCAL_IMG_PATH)
+    print('Time to download input file: {:.4f} s, size {} KB'.format(
+      end - start, inputSize))
     timelist += '"download-input" : %f,' % (end - start)
 
     start = now()
@@ -419,7 +421,7 @@ def lambda_s3_batch_handler(event, context):
     end = now()
     count = len(data)
     print('Time to extract {:d} file: {:.4f} s'.format(count, end - start))
-    timelist += '"extract" : %f,' % (end - start)
+    timelist += '"extract-input" : %f,' % (end - start)
     if (count % batchSize) != 0:
       print('input files number {:d} cannot be divided by '.format(count) +  
           'batch size {:d}'.format(batchSize))
@@ -438,25 +440,28 @@ def lambda_s3_batch_handler(event, context):
     mod.set_params(arg_params, aux_params, allow_missing=True)
     end = now()
     print('Time to prepare and load parameters: {:.4f} s'.format(end - start))
-    timelist += '"load" : %f,' % (end - start)
+    timelist += '"load-model" : %f,' % (end - start)
   
     start = now()
     labels = predict_batch(batchSize, data, mod)
     end = now()
     print('Time to predict the {:d} batch: {:.4f} s'.format(batchSize, end -
        start))
-    timelist += '"predict" : %f' % (end - start)
-
-    timelist += "}"
+    timelist += '"predict" : %f,' % (end - start)
+    
+    start = now()
     out = {
-        "results": labels,  
-        "times": timelist
+        "results": labels
     }
-    print timelist
-
     upload_output_to_s3(outputBucket, outputKey, out)
+    end = now()
 
-
+    print('Time to upload to s3 is: {:.4f} s'.format(end - start))
+    timelist += '"upload-output" : %f,' % (end - start)
+    timelist += '"batch" : %d' % (batchSize)
+    timelist += "}"
+    
+    print 'Timelist:' + json.dumps(timelist)
 
 # for local test
 if __name__ == '__main__':
