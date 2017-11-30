@@ -28,6 +28,12 @@ def plot_histogram(data, title, xlabel, outfile, color='red', nbins=50):
   plt.ylabel('Count')
   plt.title(title)
   plt.grid(True)
+
+  xmin = 0
+  xmax = 300000
+  axes = plt.gca()
+  axes.set_xlim([xmin, xmax])
+  
   plt.savefig(outfile)
   plt.clf() # remember to clear!
 
@@ -38,11 +44,11 @@ def main(args):
 
   if "duration" in data:
     plot_histogram(data['duration'], 'Lambda duration', 'Milliseconds',
-                   'duration.pdf')
+                   'duration_{}.pdf'.format(args.data))
 
   if "billed-duration" in data:
     plot_histogram(data['billed-duration'], 'Lambda billed duration',
-                  'Milliseconds', 'billed-duration.pdf')
+                  'Milliseconds', 'billed-duration_{}.pdf'.format(args.data))
 
 
   # TODO: add more fields
