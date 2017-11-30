@@ -12,7 +12,11 @@ import argparse
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.font_manager import FontProperties
 
+LABEL_FONT_SIZE = 12
+LABEL_FP = FontProperties(style='normal', size=LABEL_FONT_SIZE, weight='bold')
 
 def get_args():
   parser = argparse.ArgumentParser()
@@ -21,18 +25,26 @@ def get_args():
   return parser.parse_args()
 
 
-def plot_histogram(data, title, xlabel, outfile, color='red', nbins=50):
+def plot_histogram(data, title, xlabel, outfile, color='red', nbins=300):
   # the histogram of the data
-  plt.hist(data, nbins, facecolor=color, alpha=0.75)
-  plt.xlabel(xlabel)
-  plt.ylabel('Count')
-  plt.title(title)
-  plt.grid(True)
-
+  data = [x/100 for x in data]
   xmin = 0
-  xmax = 300000
+  xmax = 1800
   axes = plt.gca()
   axes.set_xlim([xmin, xmax])
+
+  step = (xmax - xmin) / nbins
+  nbinsList = xrange(xmin, xmax, step)
+  plt.hist(data, nbinsList, facecolor=color, alpha=0.85, zorder=3)
+  plt.xlabel(xlabel,fontproperties=LABEL_FP)
+  plt.ylabel('Count', fontproperties=LABEL_FP)
+
+  # draw grid behind bars
+  plt.grid(True, zorder=0, linestyle='dashed', linewidth=0.5) 
+
+  mean = np.mean(data)
+  median = np.median(data)
+  plt.title('{}: mean={:.2f}, median={:.2f}'.format(title, mean, median))
   
   plt.savefig(outfile)
   plt.clf() # remember to clear!
@@ -43,12 +55,12 @@ def main(args):
     data = json.load(ifs)
 
   if "duration" in data:
-    plot_histogram(data['duration'], 'Lambda duration', 'Milliseconds',
+    plot_histogram(data['duration'], 'Lambda duration', 'Time (100 ms)',
                    'duration_{}.pdf'.format(args.data))
 
   if "billed-duration" in data:
     plot_histogram(data['billed-duration'], 'Lambda billed duration',
-                  'Milliseconds', 'billed-duration_{}.pdf'.format(args.data))
+                  'Time (100 ms)', 'billed-duration_{}.pdf'.format(args.data))
 
 
   # TODO: add more fields
