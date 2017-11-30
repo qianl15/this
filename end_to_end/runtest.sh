@@ -4,7 +4,7 @@
 
 num=3
 fm_num=5
-batches=("50")
+batches=("10")
 iters=20
 
 for batch in ${batches[@]}; do
@@ -19,6 +19,6 @@ for batch in ${batches[@]}; do
       mkdir -p "${out_dir}/${iter}"
       mv *.out "${out_dir}/${iter}"
       mv ${tmp} "${out_dir}/${iter}"
-      sleep 10 # sleep 10 second!
+      sleep 300 # sleep 300 second!
     done
 done
