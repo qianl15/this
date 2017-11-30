@@ -11,6 +11,7 @@ from threading import Semaphore
 import urllib
 from timeit import default_timer as now
 import json
+from collections import OrderedDict
 
 DECODER_PATH = '/tmp/DecoderAutomataCmd-static'
 TEMP_OUTPUT_DIR = '/tmp/output'
@@ -194,12 +195,14 @@ def convert_to_jpegs(protoPath, binPath):
   return rc == 0
 
 def handler(event, context):
-  timelist = "{"
+  # timelist = "{"
+  timelist = OrderedDict()
   start = now()
   ensure_clean_state()
   end = now()
   print('Time to prepare decoder: {:.4f} s'.format(end - start))
-  timelist += '"prepare-decoder" : %f,' % (end - start)
+  # timelist += '"prepare-decoder" : %f,' % (end - start)
+  timelist["prepare-decoder"] = (end - start)
 
   inputBucket = 'vass-video-samples2'
   inputPrefix = 'protobin/example3_134'
@@ -238,7 +241,8 @@ def handler(event, context):
                                               startFrame)
   end = now()
   print('Time to download input files: {:.4f} s'.format(end - start))
-  timelist += '"download-input" : %f,' % (end - start)
+  # timelist += '"download-input" : %f,' % (end - start)
+  timelist["download-input"] = (end - start)
 
   inputBatch = 0
   try:
@@ -248,7 +252,8 @@ def handler(event, context):
         raise Exception('Failed to decode video chunk {:d}'.format(startFrame))
       end = now()
       print('Time to decode: {:.4f} '.format(end - start))
-      timelist += '"decode" : %f,' % (end - start)
+      # timelist += '"decode" : %f,' % (end - start)
+      timelist["decode"] = (end - start)
     finally:
       shutil.rmtree(LOCAL_INPUT_DIR)
 
@@ -257,7 +262,8 @@ def handler(event, context):
       inputBatch = combine_output_files(startFrame, outputBatchSize)
     end = now()
     print('Time to combine output files: {:.4f} '.format(end - start))
-    timelist += '"combine-output" : %f,' % (end - start)
+    # timelist += '"combine-output" : %f,' % (end - start)
+    timelist["combine-output"] = (end - start)
 
     start = now()
     fileCount, totalSize = upload_output_to_s3(outputBucket, outputPrefix)
@@ -265,17 +271,20 @@ def handler(event, context):
     if outputBatchSize == 1:
       inputBatch = fileCount
     print('Time to upload output files: {:.4f} '.format(end - start))
-    timelist += '"upload-output" : %f,' % (end - start)
+    # timelist += '"upload-output" : %f,' % (end - start)
+    timelist["upload-output"] = (end - start)
   finally:
     start = now()
     if not DEFAULT_KEEP_OUTPUT:
       shutil.rmtree(TEMP_OUTPUT_DIR)
     end = now()
     print('Time to clean output files: {:.4f} '.format(end - start))
-    timelist += '"clean-output" : %f,' % (end - start)
+    # timelist += '"clean-output" : %f,' % (end - start)
+    timelist["clean-output"] = (end - start)
   
-  timelist += '"input-batch" : %d' % (inputBatch)
-  timelist += '}'
+  # timelist += '"input-batch" : %d' % (inputBatch)
+  timelist["input-batch"] = inputBatch
+  # timelist += '}'
 
   print 'Timelist:' + json.dumps(timelist)
   out = {
