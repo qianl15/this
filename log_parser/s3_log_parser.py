@@ -36,16 +36,24 @@ def get_args():
 
 class StatsObject(object):
 
-  def __init__(self, expname):
+  def __init__(self, expname=None):
     self.numLambdas = 0
-    self.validLambda = False
+    self.totalLogs = 0
+    if expname is not None:
+      self.validLambda = False
+    else:
+      self.validLambda = True
     self.expName = expname
     self.data = OrderedDict()
 
   def incrementNumLambdas(self):
+    self.totalLogs += 1
     if self.validLambda:
       self.numLambdas += 1
-      self.validLambda = False
+      if self.expName is not None:
+        self.validLambda = False
+      else:
+        pass
 
   def record_key_value(self, k, v):
     if k not in self.data:
@@ -53,7 +61,8 @@ class StatsObject(object):
     self.data[k].append(v)
 
   def print_stats(self):
-    print 'Parsed %d lambda logs' % self.numLambdas
+    print 'Parsed %d lambda logs out of %d logs' % (self.numLambdas, 
+                                                    self.totalLogs)
     for k, v in self.data.iteritems():
       print k
       print '  mean:', np.mean(v)
@@ -77,20 +86,23 @@ class StatsObject(object):
 REPORT_RE = re.compile(r'Duration: ([\d.]+) ms[\s]+Billed Duration: (\d+) ms[\s]+Memory Size: (\d+) MB[\s]+Max Memory Used: (\d+) MB')
 
 def parse_line(line, stats):
-  if stats.expName in line:
+  if stats.expName and stats.expName in line:
     stats.validLambda = True
-  if 'exceeded' in line:
-      stats.validLambda = False
-      print >> sys.stderr, line
+  
   if stats.validLambda:
     if 'Timelist:' in line:
+      timelistObj = None
       try:
         _, timelist = line.split('Timelist:', 1)
         timelistObj = json.loads(json.loads(timelist.strip()))
-        for k, v in timelistObj.iteritems():
-          stats.record_key_value(k, v)
       except Exception as e:
-        print >> sys.stderr, e, line
+        try:
+          timelistObj = json.loads(timelist)
+        except Exception as e:
+          print >> sys.stderr, e, line
+        
+      for k, v in timelistObj.iteritems():
+        stats.record_key_value(k, v)
 
     matchObj = REPORT_RE.search(line)
     if matchObj is not None:

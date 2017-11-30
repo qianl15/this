@@ -66,13 +66,20 @@ REPORT_RE = re.compile(r'Duration: ([\d.]+) ms\s+Billed Duration: (\d+) ms\s+Mem
 
 def parse_line(line, stats):
   if 'Timelist:' in line:
+    timelistObj = None
+    # back compatibility, support two types
     try:
       _, timelist = line.split('Timelist:', 1)
       timelistObj = json.loads(json.loads(timelist.strip()))
-      for k, v in timelistObj.iteritems():
-        stats.record_key_value(k, v)
     except Exception as e:
-      print >> sys.stderr, e, line
+      try:
+        timelistObj = json.loads(timelist)
+      except Exception as e:
+        print >> sys.stderr, e, line
+      
+    for k, v in timelistObj.iteritems():
+      stats.record_key_value(k, v)
+    
 
   matchObj = REPORT_RE.search(line)
   if matchObj is not None:

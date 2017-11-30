@@ -15,35 +15,39 @@ import matplotlib.pyplot as plt
 
 
 def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--data', '-d', type=str, required=True,
-                        help='Data collected by parser script')
-    return parser.parse_args()
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--data', '-d', type=str, required=True,
+            help='Data collected by parser script')
+  return parser.parse_args()
 
 
 def plot_histogram(data, title, xlabel, outfile, color='red', nbins=50):
-    # the histogram of the data
-    plt.hist(data, nbins, facecolor=color, alpha=0.75)
-    plt.xlabel(xlabel)
-    plt.ylabel('Count')
-    plt.title(title)
-    plt.grid(True)
-    plt.savefig(outfile)
+  # the histogram of the data
+  plt.hist(data, nbins, facecolor=color, alpha=0.75)
+  plt.xlabel(xlabel)
+  plt.ylabel('Count')
+  plt.title(title)
+  plt.grid(True)
+  plt.savefig(outfile)
+  plt.clf() # remember to clear!
 
 
 def main(args):
-    with open(args.data, 'r') as ifs:
-        data = json.load(ifs)
+  with open(args.data, 'r') as ifs:
+    data = json.load(ifs)
 
+  if "duration" in data:
     plot_histogram(data['duration'], 'Lambda duration', 'Milliseconds',
                    'duration.pdf')
 
+  if "billed-duration" in data:
     plot_histogram(data['billed-duration'], 'Lambda billed duration',
-                   'Milliseconds', 'billed-duration.pdf')
+                  'Milliseconds', 'billed-duration.pdf')
 
-    # TODO: add more fields
+
+  # TODO: add more fields
 
 
 
 if __name__ == '__main__':
-    main(get_args())
+  main(get_args())
