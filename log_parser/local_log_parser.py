@@ -12,6 +12,10 @@ import json
 import os
 import re
 import sys
+import time
+
+# need to install python-dateutil
+import dateutil.parser
 
 import numpy as np
 
@@ -79,7 +83,16 @@ def parse_line(line, stats):
       
     for k, v in timelistObj.iteritems():
       stats.record_key_value(k, v)
-    
+  
+  if 'START' in line:
+    timeStr, _ = line.split(' ', 1)  
+    parsedDate = dateutil.parser.parse(timeStr)
+    stats.record_key_value('start-time', time.mktime(parsedDate.timetuple()))
+
+  if 'END' in line:
+    timeStr, _ = line.split(' ', 1)
+    parsedDate = dateutil.parser.parse(timeStr)
+    stats.record_key_value('end-time', time.mktime(parsedDate.timetuple()))
 
   matchObj = REPORT_RE.search(line)
   if matchObj is not None:
