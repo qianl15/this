@@ -23,7 +23,8 @@ import dateutil.parser
 
 from collections import OrderedDict
 
-TEMP_INPUT = './download_log.gz'
+TEMP_INPUT = 'download_log.gz'
+OUTPUT_DIR = './'
 
 def get_args():
   parser = argparse.ArgumentParser()
@@ -31,7 +32,7 @@ def get_args():
             help='S3 bucket where logs files are stored')
   parser.add_argument('--prefix', '-p', type=str, required=True,
             help='S3 log files prefix')
-  parser.add_argument('--expname', '-e', type=str, required=True,
+  parser.add_argument('--expname', '-e', type=str, required=False,
             help='Experiment name, eg. example3_138_50_50')
   parser.add_argument('--outfile', '-o', type=str, required=True,
             help='File to save parsed output')
@@ -93,6 +94,16 @@ def parse_line(line, stats):
   if stats.expName and stats.expName in line:
     stats.validLambda = True
   
+  if 'START' in line:
+    timeStr, _ = line.split(' ', 1)  
+    parsedDate = dateutil.parser.parse(timeStr)
+    stats.record_key_value('start-time', time.mktime(parsedDate.timetuple()))
+
+  if 'END' in line:
+    timeStr, _ = line.split(' ', 1)
+    parsedDate = dateutil.parser.parse(timeStr)
+    stats.record_key_value('end-time', time.mktime(parsedDate.timetuple()))
+
   if stats.validLambda:
     if 'Timelist:' in line:
       timelistObj = None
@@ -108,16 +119,6 @@ def parse_line(line, stats):
       for k, v in timelistObj.iteritems():
         stats.record_key_value(k, v)
 
-    if 'START' in line:
-      timeStr, _ = line.split(' ', 1)  
-      parsedDate = dateutil.parser.parse(timeStr)
-      stats.record_key_value('start-time', time.mktime(parsedDate.timetuple()))
-
-    if 'END' in line:
-      timeStr, _ = line.split(' ', 1)
-      parsedDate = dateutil.parser.parse(timeStr)
-      stats.record_key_value('end-time', time.mktime(parsedDate.timetuple()))
-
     matchObj = REPORT_RE.search(line)
     if matchObj is not None:
       duration = float(matchObj.group(1))
@@ -131,13 +132,21 @@ def parse_line(line, stats):
       stats.record_key_value('max-memory-used', maxMemoryUsed)
       stats.incrementNumLambdas()
 
-def ensure_clean_state():
-  if os.path.exists(TEMP_INPUT):
-    os.remove(TEMP_INPUT)
+def ensure_clean_state(downloadDir=None):
+  if downloadDir is not None:
+    if os.path.exists(downloadDir):
+      shutil.rmtree(downloadDir)
+    os.mkdir(downloadDir)
+  else:
+    downloadDir = './'
+  return downloadDir
 
 def main(args):
-  ensure_clean_state()
+  downloadDir = args.prefix.split('/')[0]
+  downloadFile = os.path.join(downloadDir, TEMP_INPUT)
+  downloadDir = ensure_clean_state(downloadDir)
 
+  print >> sys.stderr, 'Local file: ', downloadFile
   print >> sys.stderr, 'Bucket: ', args.bucket
   print >> sys.stderr, 'Prefix: ', args.prefix
   print >> sys.stderr, 'Experiment: ', args.expname
@@ -155,9 +164,9 @@ def main(args):
     objKey = obj.key
     if objKey.endswith('.gz'):
       print >> sys.stderr, 'Parsing', objKey
-      s3.Object(logsBucket.name, objKey).download_file(TEMP_INPUT)
+      s3.Object(logsBucket.name, objKey).download_file(downloadFile)
       try:
-        with gzip.open(TEMP_INPUT, 'rb') as logFile:
+        with gzip.open(downloadFile, 'rb') as logFile:
           for line in logFile:
             parse_line(line, stats)
 
@@ -166,6 +175,7 @@ def main(args):
 
   print('S3 Bucket: {}'.format(args.bucket))
   print('File Prefix: {}'.format(args.prefix))
+  print('Experiment: {}'.format(args.expname))
   stats.print_stats()
   if args.outfile is not None:
     stats.dump_parsed_values(args.outfile)
