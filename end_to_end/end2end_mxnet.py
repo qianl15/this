@@ -155,7 +155,7 @@ def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
   s3 = boto3.resource('s3') # for method 1, 3
   # s3 = boto3.client('s3') # for method 2
   outputBucket = DOWNLOAD_BUCKET
-  # remain = numRows
+  # remain = numRows - startFrame
   # for currStart in xrange(startFrame, numRows, batch):
   #   currEnd = min(remain, batch)
   #   outputKey = '{}/{}_{}_{}/frame{}-{}.out'.format(DOWNLOAD_PREFIX, 

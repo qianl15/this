@@ -516,16 +516,23 @@ if __name__ == '__main__':
   DEFAULT_OUT_FOLDER = 'mxnet-local-test/'
   inputBucket = 'vass-video-samples2'
   inputPrefix = 'decode-output/example3_138_50_50'
-  startFrame = 0
+  initialFrame = 0
   batchSize = 50
   totalFrame = 6221
 
   if (len(sys.argv) > 1):
     totalFrame = min(int(sys.argv[1]), totalFrame)
+    if (len(sys.argv) > 2):
+      initialFrame = min(int(sys.argv[2]), totalFrame)
+    if (len(sys.argv) > 3):
+      batchSize = min(batchSize, int(sys.argv[3]))
+      inputPrefix = 'decode-output/example3_138_50_{}'.format(batchSize)
 
-  for startFrame in xrange(0, totalFrame, batchSize):
+  remain = totalFrame - initialFrame
+  for startFrame in xrange(initialFrame, totalFrame, batchSize):
+    currEnd = min(remain, batchSize)
     inputKey = '{}/frame{:d}-{:d}.jpg'.format(
-                                       inputPrefix, startFrame, batchSize)
+                                       inputPrefix, startFrame, currEnd)
     event = {
               "Records": [
                 {
@@ -546,3 +553,4 @@ if __name__ == '__main__':
     duration = (end - start) * 1000
     billedDuration = math.ceil(duration / 100.0) * 100.0
     print('Duration: {:.2f} ms Billed Duration: {:.0f} ms   Memory Size: 1536 MB  Max Memory Used: 1536 MB'.format(duration, billedDuration))
+    remain -= batchSize
