@@ -27,6 +27,8 @@ import base64
 from collections import namedtuple
 from collections import OrderedDict
 import os.path
+import math
+
 Batch = namedtuple('Batch', ['data'])
 
 f_params = 'resnet-18-0000.params'
@@ -480,34 +482,67 @@ def lambda_s3_batch_handler(event, context):
 
 # for local test
 if __name__ == '__main__':
-  start = now()
+  # start = now()
+  # inputBucket = 'vass-video-samples2'
+  # inputKey = 'batch-test/1901+100.jpg'
+  # batchSize = 1
+  # outputBucket = 'vass-video-samples2'
+  # outputKey = 'mxnet-results/1901+100.out'
+  # if (len(sys.argv) > 1):
+  #   batchSize = int(sys.argv[1])
+  #   if (len(sys.argv) > 2):
+  #     inputBucket = sys.argv[2]
+  #     outputBucket = inputBucket
+  #   if (len(sys.argv) > 3):
+  #     inputKey = sys.argv[3]
+  #     outputKey = inputKey.split(".")[0].split("/")[-1] + '.out'
+  #     outputKey = DEFAULT_OUT_FOLDER + outputKey
+  #   if (len(sys.argv) > 4):
+  #     outputBucket = sys.argv[4]
+  #   if (len(sys.argv) > 5):
+  #     outputBucket = sys.argv[5]
+  # event = {
+  #     'inputBucket': inputBucket,
+  #     'inputKey': inputKey,
+  #     'batchSize': batchSize,
+  #     'outputBucket': outputBucket,
+  #     'outputKey': outputKey
+  # }
+  # print event
+  # out = lambda_batch_handler(event, {})
+  # end = now()
+  # print('Total time: {:.4f}'.format(end - start))
+  
+  DEFAULT_OUT_FOLDER = 'mxnet-local-test/'
   inputBucket = 'vass-video-samples2'
-  inputKey = 'batch-test/1901+100.jpg'
-  batchSize = 1
-  outputBucket = 'vass-video-samples2'
-  outputKey = 'mxnet-results/1901+100.out'
+  inputPrefix = 'decode-output/example3_138_50_50'
+  startFrame = 0
+  batchSize = 50
+  totalFrame = 6221
+
   if (len(sys.argv) > 1):
-    batchSize = int(sys.argv[1])
-    if (len(sys.argv) > 2):
-      inputBucket = sys.argv[2]
-      outputBucket = inputBucket
-    if (len(sys.argv) > 3):
-      inputKey = sys.argv[3]
-      outputKey = inputKey.split(".")[0].split("/")[-1] + '.out'
-      outputKey = DEFAULT_OUT_FOLDER + outputKey
-    if (len(sys.argv) > 4):
-      outputBucket = sys.argv[4]
-    if (len(sys.argv) > 5):
-      outputBucket = sys.argv[5]
-  event = {
-      'inputBucket': inputBucket,
-      'inputKey': inputKey,
-      'batchSize': batchSize,
-      'outputBucket': outputBucket,
-      'outputKey': outputKey
-  }
-  print event
-  out = lambda_batch_handler(event, {})
-  end = now()
-  print('Total time: {:.4f}'.format(end - start))
-  #print out
+    totalFrame = min(int(sys.argv[1]), totalFrame)
+
+  for startFrame in xrange(0, totalFrame, batchSize):
+    inputKey = '{}/frame{:d}-{:d}.jpg'.format(
+                                       inputPrefix, startFrame, batchSize)
+    event = {
+              "Records": [
+                {
+                  "s3": {
+                    "object": {
+                      "key": inputKey,
+                    },
+                    "bucket": {
+                      "name": inputBucket,
+                    }
+                  }
+                }
+              ]
+            }
+    start = now()
+    result = lambda_s3_batch_handler(event, {})
+    end = now()
+    duration = (end - start) * 1000
+    billedDuration = math.ceil(duration / 100.0) * 100.0
+    print('Duration: {:.2f} ms Billed Duration: {:.0f} ms   Memory Size: 1536 MB  Max Memory Used: 1536 MB'.format(duration, billedDuration))
