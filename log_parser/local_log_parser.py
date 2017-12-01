@@ -34,6 +34,7 @@ class StatsObject(object):
 
   def __init__(self):
     self.numLambdas = 0
+    self.totalLogs = 0
     self.data = OrderedDict()
 
   def incrementNumLambdas(self):
@@ -45,7 +46,8 @@ class StatsObject(object):
     self.data[k].append(v)
 
   def print_stats(self):
-    print 'Parsed %d lambda logs' % self.numLambdas
+    print 'Parsed %d lambda logs out of %d logs' % (self.numLambdas, 
+                                                    self.totalLogs)
     for k, v in self.data.iteritems():
       print k
       print '  mean:', np.mean(v)
@@ -83,6 +85,7 @@ def parse_line(line, stats):
       
     for k, v in timelistObj.iteritems():
       stats.record_key_value(k, v)
+    stats.totalLogs += 1
   
   if 'START' in line:
     timeStr, _ = line.split(' ', 1)  
