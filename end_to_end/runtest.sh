@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ./clear.sh
-
+rm -rf ~/.scanner_db
 num=3
 fm_num=5
 batches=("10")

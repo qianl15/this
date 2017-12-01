@@ -11,6 +11,7 @@ mprof run --multiprocess python2 mxnet_pyscanner.py 3 5 ${output_dir} ${batch} >
 mv *.dat ${output_dir}
 mv *.out ${output_dir}
 
+sleep 10
 
 tmp="test_3_5_50.out"
 batch=50

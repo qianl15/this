@@ -17,7 +17,7 @@ from timeit import default_timer as now
 import math
 from urllib import urlretrieve
 
-WORK_PACKET_SIZE = 250
+WORK_PACKET_SIZE = 50
 # choose which video we wanted to download, and the format
 # format 134 = 360p, 135 = 480p, 136 = 720p, 137 = 1080p
 # By default, we download the third video with the lowest quality

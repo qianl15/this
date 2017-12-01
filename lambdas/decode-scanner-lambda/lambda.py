@@ -16,6 +16,7 @@ from collections import OrderedDict
 DECODER_PATH = '/tmp/DecoderAutomataCmd-static'
 TEMP_OUTPUT_DIR = '/tmp/output'
 LOCAL_INPUT_DIR = '/tmp/input'
+WORK_PACKET_SIZE = 50
 
 
 # os.environ['LD_LIBRARY_PATH'] = '$%s:%s/scanner/' % (os.environ['LD_LIBRARY_PATH'], os.getcwd())
@@ -232,6 +233,8 @@ def handler(event, context):
     outputBatchSize = event['outputBatchSize']
   else:
     print('Warning: default batch size: {:d}'.format(outputBatchSize))
+  if 'outputPrefix' in event:
+    outputPrefix = event['outputPrefix']
 
   outputPrefix = outputPrefix + '/{}_{}'.format(inputPrefix.split('/')[-1], 
                                                 outputBatchSize)
@@ -299,20 +302,22 @@ def handler(event, context):
 
 if __name__ == '__main__':
   inputBucket = 'vass-video-samples2'
-  inputPrefix = 'protobin/example3_135'
+  inputPrefix = 'protobin/example3_138_50'
   startFrame = 0
   outputBatchSize = 50
+  outputPrefix = 'decode-local-test'
+  totalFrame = 6221
 
   if (len(sys.argv) > 1):
-    startFrame = int(sys.argv[1])
+    totalFrame = min(int(sys.argv[1]), totalFrame)
 
-  event = {
-    'inputBucket': inputBucket,
-    'inputPrefix': inputPrefix,
-    'startFrame': startFrame,
-    'outputBatchSize': outputBatchSize
-  }
-  print event
+  for startFrame in xrange(0, totalFrame, WORK_PACKET_SIZE):
+    event = {
+      'inputBucket': inputBucket,
+      'inputPrefix': inputPrefix,
+      'startFrame': startFrame,
+      'outputBatchSize': outputBatchSize,
+      'outputPrefix': outputPrefix
+    }
+    result = handler(event, {})
 
-  out = handler(event, {})
-  print out
