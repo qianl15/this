@@ -12,6 +12,7 @@ import urllib
 from timeit import default_timer as now
 import json
 from collections import OrderedDict
+import math
 
 DECODER_PATH = '/tmp/DecoderAutomataCmd-static'
 TEMP_OUTPUT_DIR = '/tmp/output'
@@ -319,5 +320,9 @@ if __name__ == '__main__':
       'outputBatchSize': outputBatchSize,
       'outputPrefix': outputPrefix
     }
+    start = now()
     result = handler(event, {})
-
+    end = now()
+    duration = (end - start) * 1000
+    billedDuration = math.ceil(duration / 100.0) * 100.0
+    print('Duration: {:.2f} ms Billed Duration: {:.0f} ms   Memory Size: 1536 MB  Max Memory Used: 1536 MB'.format(duration, billedDuration))
