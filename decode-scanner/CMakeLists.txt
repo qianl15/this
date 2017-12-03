@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.2.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.2.0 FATAL_ERROR)
 
 project(decoder_scanner)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CUDA -ggdb")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
@@ -14,7 +14,16 @@ find_package(Storehouse REQUIRED CONFIG
 find_package(FFmpeg REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(SaneProtobuf REQUIRED)
-
+option(BUILD_CUDA "" ON)
+###### Optional Dependencies #######
+if (BUILD_CUDA)
+  find_package(CUDA REQUIRED)
+  add_definitions(-DHAVE_CUDA)
+  include_directories(${CUDA_INCLUDE_DIRS})
+  if(COMPILER_SUPPORTS_CXX1Y)
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11")
+  endif()
+endif()
 set(SCANNER_INCLUDE "/opt/scanner/build" "/opt/scanner")
 set(SCANNER_LIBRARY "/opt/scanner/build/libscanner.so")
 set(PLATFORM_LINK_FLAGS "-pthread -ldl -lrt")

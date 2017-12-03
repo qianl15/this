@@ -7,8 +7,10 @@
 
 #include "scanner/video/decoder_automata.h"
 #include "scanner/util/fs.h"
+#include "scanner/util/cuda.h"
 #include "scanner/util/opencv.h"  // for using OpenCV
-
+//#include "scanner/video/nvidia/nvidia_video_decoder.h"
+#include "scanner/video/video_decoder.h"
 #include <fstream>
 #include <sys/stat.h>
 
@@ -54,25 +56,46 @@ namespace internal {
     std::vector<proto::DecodeArgs> args;
     
     MemoryPoolConfig config;
-    init_memory_allocators(config, {});
+    init_memory_allocators(config, {0});
+//    std::cout << cudaGetErrorString(1) << std::endl;
+#ifdef HAVE_CUDA
+    std::cout << "HAVE_CUDA is " <<std::endl;
+#else
+    std::cout << "don't HAVE_CUDA" << std::endl;
+#endif
+    CUDA_PROTECT(printf("hi\n"));
+    int x = -10;
+    int res = VideoDecoder::has_decoder_type(VideoDecoderType::NVIDIA); 
+    if (res){ 
+        std::cout << "have nvidia decoder" << std::endl;
+    }
+    //cudaGetDeviceCount(&x);
+    printf("device count: %i\n", x);
 
-    VideoDecoderType decoder_type = VideoDecoderType::SOFTWARE;
-    DeviceHandle device = CPU_DEVICE;
-    DecoderAutomata* decoder = new DecoderAutomata(device, 1, decoder_type);
+    VideoDecoderType decoder_type = VideoDecoderType::NVIDIA;
+    printf("hi2\n");
+    DeviceHandle GPU_DEVICE = {DeviceType::GPU, 0};
+    printf("hi3\n");
+    //DeviceHandle device = GPU_DEVICE;
+    DecoderAutomata* decoder = new DecoderAutomata(GPU_DEVICE, 1, decoder_type);
+    printf("hi4\n");
 
     // Load test data
     std::string videoFileName = argv[2];
     std::vector<u8> video_bytes = read_entire_file(videoFileName);
-    u8* video_buffer = new_buffer(CPU_DEVICE, video_bytes.size());
-    memcpy_buffer(video_buffer, CPU_DEVICE, video_bytes.data(), CPU_DEVICE,
+    printf("hi4.5\n");
+    u8* video_buffer = new_buffer(GPU_DEVICE, video_bytes.size());
+    printf("hi5\n");
+    memcpy_buffer(video_buffer, GPU_DEVICE, video_bytes.data(), CPU_DEVICE,
       video_bytes.size());
 
+    printf("hi6\n");
     loadedDecodeArgs.set_encoded_video((i64)video_buffer);
 
     args.push_back(loadedDecodeArgs);
     decoder->initialize(args);
 
-
+    u8* frame_buffer_gpu = new_buffer(GPU_DEVICE, loadedDecodeArgs.width() * loadedDecodeArgs.height() * 3);
     std::vector<u8> frame_buffer(loadedDecodeArgs.width() * loadedDecodeArgs.height() * 3);
 
     FrameInfo frame_info(loadedDecodeArgs.height(), loadedDecodeArgs.width(), 
@@ -83,7 +106,12 @@ namespace internal {
     size_t total_size = 0;
     int first_frame = -1;
     for (i64 i = 0; i < loadedDecodeArgs.valid_frames().size(); ++i) {
-      decoder->get_frames(frame_buffer.data(), 1);
+      printf("hi7\n");
+      decoder->get_frames(frame_buffer_gpu, 1);
+      printf("hi7.5\n");
+      memcpy_buffer(frame_buffer.data(), CPU_DEVICE, frame_buffer_gpu, GPU_DEVICE, frame_buffer.size());
+      //decoder->get_frames(frame_buffer.data(), 1);
+      printf("hi8\n");
       int ind = loadedDecodeArgs.valid_frames()[i];
       std::string ind_str = std::to_string(ind);
       if (first_frame == -1) {
