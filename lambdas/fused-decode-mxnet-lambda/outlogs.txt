@@ -1,0 +1,11 @@
+Time to prepare decoder: 0.1922 s
+Downloading files decode_args0.proto and start_frame0.bin for batch 0         from s3: vass-video-samples2/protobin/example3_138_50
+Time to download input files: 1.0338 s
+stdout: Output dir: /tmp/output exists!
+Decoder generated # 50 files from frame 0. Total size is: 234 MB
+
+stderr: DecoderAutomataCmd-static: was packed with Ermine Trial and should be used for evaluation only.
+DecoderAutomataCmd-static: license will expire in 26 day(s)
+
+Time to decode: 9.2110 
+Time to clean output files: 0.0289 
