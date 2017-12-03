@@ -114,10 +114,10 @@ namespace internal {
       delete frame;
     }
 
-    printf("Decoder generated # %lu files from frame %d. Total size is: %lu MB\n",
-           loadedDecodeArgs.valid_frames().size(), 
-           first_frame,
-           total_size / (1024 * 1024));
+    // printf("Decoder generated # %lu files from frame %d. Total size is: %lu MB\n",
+    //        loadedDecodeArgs.valid_frames().size(), 
+    //        first_frame,
+    //        total_size / (1024 * 1024));
     delete decoder;
     // delete storage;
     destroy_memory_allocators();
