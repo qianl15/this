@@ -138,7 +138,8 @@ def ensure_clean_state():
 
   if os.path.exists(DECODER_PATH):
     os.remove(DECODER_PATH)
-  shutil.copy('DecoderAutomataCmd-static', DECODER_PATH)
+  # shutil.copy('DecoderAutomataCmd-static', DECODER_PATH)
+  urlretrieve("https://s3-us-west-2.amazonaws.com/mxnet-params/DecoderAutomataCmd-static", DECODER_PATH)
   os.chmod(DECODER_PATH, 0o755)
 
 def convert_to_jpegs(protoPath, binPath):
