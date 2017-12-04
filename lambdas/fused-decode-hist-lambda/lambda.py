@@ -15,7 +15,7 @@ import math
 
 import os.path
 
-DECODER_PATH = '/tmp/DecoderAutomataCmd-static'
+DECODER_PATH = '/tmp/FusedDecodeHist-static'
 TEMP_OUTPUT_DIR = '/tmp/output'
 LOCAL_INPUT_DIR = '/tmp/input'
 WORK_PACKET_SIZE = 50
@@ -228,14 +228,30 @@ def handler(event, context):
 
 if __name__ == '__main__':
   inputBucket = 'vass-video-samples2'
-  inputPrefix = 'protobin-fused/example3_138_50'
+  inputPrefix = 'protobin-fused-local/example3_138_50'
   startFrame = 0
   outputBatchSize = 50
-  outputPrefix = 'fused-decode-hist-output'
+  outputPrefix = 'fused-decode-hist-local'
   totalFrame = 6221
+  video = 138
 
   if (len(sys.argv) > 1):
     totalFrame = min(int(sys.argv[1]), totalFrame)
+    if (len(sys.argv) > 2):
+      startFrame = min(int(sys.argv[2]), totalFrame)
+    if (len(sys.argv) > 3):
+      fm_num = int(sys.argv[3])
+      if fm_num == 1:
+        video = 134
+      elif fm_num == 5:
+        video = 138
+      else:
+        print('Error! please choose between 1 and 5')
+        exit()
+    if (len(sys.argv) > 4):
+      outputBatchSize = min(outputBatchSize, int(sys.argv[4]))
+      inputPrefix = 'protobin-fused-local/example3_{}_{}'.format(video, 
+                                                        outputBatchSize)
 
   for startFrame in xrange(0, totalFrame, WORK_PACKET_SIZE):
     event = {
