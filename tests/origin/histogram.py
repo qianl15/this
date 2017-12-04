@@ -18,6 +18,7 @@ import util
 from timeit import default_timer as now
 import math
 
+WORK_PACKET_SIZE = 50
 def mean(arr):
   agg = 0.0
   for x in arr:
@@ -87,14 +88,15 @@ def test_histogram(n = 1, num = 1, fm_num = 1, out_dir = './'):
       frame = db.ops.FrameInput()
       histogram = db.ops.Histogram(
         frame = frame,
-        device = device)
+        device = device,
+        batch = 10)
       output = db.ops.Output(columns=[histogram])
       job = Job(op_args={
         frame: input_table.column('frame'),
         output: 'test_hist_hist'
       })
       bulk_job = BulkJob(output=output, jobs=[job])
-      [hists_table] = db.run(bulk_job, force=True, profiling=True, show_progress=True, pipeline_instances_per_node=8)
+      [hists_table] = db.run(bulk_job, force=True, profiling=True, show_progress=True, work_packet_size=WORK_PACKET_SIZE, pipeline_instances_per_node=8)
 
       stop = now()
       delta = stop - start
