@@ -210,7 +210,7 @@ def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
   bar.start()
 
   fileCount = 0
-  time.sleep(5.0) # sleep for 10 seconds to wait for decoder finished!
+  time.sleep(2.0) # sleep for 10 seconds to wait for decoder finished!
   startTime = now()
   timeOut = startTime + TIMEOUT_SECONDS
   while fileCount < totalCount:
