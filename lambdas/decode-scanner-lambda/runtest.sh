@@ -1,7 +1,7 @@
 #!/bin/bash
 
 iters=20
-out_dir="./results_3_5_50"
+out_dir="./results_3_1_50"
 mkdir -p "${out_dir}"
 
 for iter in `seq 1 ${iters}`; do

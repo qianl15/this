@@ -515,7 +515,7 @@ if __name__ == '__main__':
   
   DEFAULT_OUT_FOLDER = 'mxnet-local-test/'
   inputBucket = 'vass-video-samples2'
-  inputPrefix = 'decode-output/example3_138_50_50'
+  inputPrefix = 'decode-output/example3_134_50_50'
   initialFrame = 0
   batchSize = 50
   totalFrame = 6221
@@ -526,7 +526,7 @@ if __name__ == '__main__':
       initialFrame = min(int(sys.argv[2]), totalFrame)
     if (len(sys.argv) > 3):
       batchSize = min(batchSize, int(sys.argv[3]))
-      inputPrefix = 'decode-output/example3_138_50_{}'.format(batchSize)
+      inputPrefix = 'decode-output/example3_134_50_{}'.format(batchSize)
 
   remain = totalFrame - initialFrame
   for startFrame in xrange(initialFrame, totalFrame, batchSize):

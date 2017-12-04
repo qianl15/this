@@ -3,7 +3,7 @@
 ./clear.sh
 rm -rf ~/.scanner_db
 num=3
-fm_num=5
+fm_num=1
 batches=("10")
 iters=20
 

@@ -94,7 +94,7 @@ def test_histogram(n = 1, num = 1, fm_num = 1, out_dir = './'):
         output: 'test_hist_hist'
       })
       bulk_job = BulkJob(output=output, jobs=[job])
-      [hists_table] = db.run(bulk_job, force=True, profiling=True, show_progress=True, pipeline_instances_per_node=1)
+      [hists_table] = db.run(bulk_job, force=True, profiling=True, show_progress=True, pipeline_instances_per_node=8)
 
       stop = now()
       delta = stop - start

@@ -303,7 +303,7 @@ def handler(event, context):
 
 if __name__ == '__main__':
   inputBucket = 'vass-video-samples2'
-  inputPrefix = 'protobin/example3_138_50'
+  inputPrefix = 'protobin/example3_134_50'
   startFrame = 0
   outputBatchSize = 50
   outputPrefix = 'decode-local-test'
