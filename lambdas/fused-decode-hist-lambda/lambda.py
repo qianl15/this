@@ -99,7 +99,8 @@ def upload_output_to_s3(bucketName, filePrefix):
     print e
     raise
   print('Done: [total={:d}KB]'.format(fileSize >> 10))
-  return (1, fileSize)
+  fileCount = int(fileName.split('-')[-1].split('.')[0])
+  return (fileCount, fileSize)
 
 
 def ensure_clean_state():
