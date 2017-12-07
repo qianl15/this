@@ -25,11 +25,9 @@ def get_args():
   return parser.parse_args()
 
 
-def plot_histogram(data, title, xlabel, outfile, color='red', nbins=300):
+def plot_histogram(data, title, xlabel, outfile, color='red', nbins=300,
+                   xmin=0, xmax=1800):
   # the histogram of the data
-  data = [x/100 for x in data]
-  xmin = 0
-  xmax = 1800
   axes = plt.gca()
   axes.set_xlim([xmin, xmax])
 
@@ -55,13 +53,26 @@ def main(args):
     data = json.load(ifs)
 
   if "duration" in data:
-    plot_histogram(data['duration'], 'Lambda duration', 'Time (100 ms)',
+    duration_data = [x/100 for x in data['duration']]
+    plot_histogram(duration_data, 'Lambda duration', 'Time (100 ms)',
                    'duration_{}.pdf'.format(args.data))
 
   if "billed-duration" in data:
-    plot_histogram(data['billed-duration'], 'Lambda billed duration',
+    billed_data = [x/100 for x in data['billed-duration']]
+    plot_histogram(billed_data, 'Lambda billed duration',
                   'Time (100 ms)', 'billed-duration_{}.pdf'.format(args.data))
 
+  if "start-time" in data:
+    plot_histogram(data['start-time'], 'Lambda start time', 
+      'UNIX Timestamp (s)', 'start-time_{}.pdf'.format(args.data), 
+      xmin=int(min(data['start-time'])), xmax=int(max(data['start-time'])),
+      nbins=100)
+
+  if "end-time" in data:
+    plot_histogram(data['end-time'], 'Lambda end time', 
+      'UNIX Timestamp (s)', 'end-time_{}.pdf'.format(args.data), 
+      xmin=int(min(data['end-time'])), xmax=int(max(data['end-time'])),
+      nbins=100)
 
   # TODO: add more fields
 
