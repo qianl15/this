@@ -2,7 +2,3 @@
 	path = scanner
 	url = https://github.com/qinglan233/scanner.git
 	branch = master
-[submodule "mxnet-lambda"]
-	path = mxnet-lambda
-	url = https://github.com/qinglan233/mxnet-lambda.git
-    branch = master
