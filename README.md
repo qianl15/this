@@ -24,13 +24,15 @@ git submodule update --init
 Build and install Scanner in `/opt` directory, please refer to the installation guide
 of the Scanner [installation guide](https://github.com/scanner-research/scanner#install). 
 We also found the [docker file](https://github.com/scanner-research/scanner-docker) is a good guidance for installation.
+Note that you must use our [modified version](https://github.com/qinglan233/scanner/tree/273289965f1e173142def6e95b2c771a4d7b3cf7). Because in our end-to-end code, we will use Scanner to ingest the video and prepare arguments for the decoder Lambdas, then our modified Scanner will *terminate* instead of proceeding to the normal path!
 
 Since we will use AWS Lambda that currently does not support GPU, 
-please install the *CPU version* of Scanner.
+please install the *CPU version* of Scanner. 
 
 ### Build Decoder
+We share our static build [decoder](https://s3-us-west-2.amazonaws.com/mxnet-params/DecoderAutomataCmd-static) and [fused-histogram decoder](https://s3-us-west-2.amazonaws.com/mxnet-params/FusedDecodeHist-static) on a public S3 bucket, however, be careful to use them or compile your own static executable files! Use the following instructions if you want to build your own decode binary file from scratch.
 
-We provide two models: the fuse model and the split model. 
+We implemented two models: the fuse model and the split model. 
 
 If you wanted to run the split model, then you can build the standalone decoder:
 ```bash
@@ -55,7 +57,7 @@ make
 And again use Ermine to create the static binary file called 
 `FusedDecodeHist-static`.
 
-You need to upload the decoder binary to S3 because they are too large to fit into a Lambda function.
+You need to upload the decoder binary to S3 because they are too large to fit into a Lambda function. You'll also have to change the decoder download path in Lambda functions. 
 
 ### Deploy Lambda Functions
 
@@ -69,8 +71,8 @@ You need to create two buckets on S3: one for decoder arguments and intermediate
 As we described, we implement both the fuse and split models. Here are two examples to use them respectively.
 
 ### Fuse Model
-We use the fused histogram as an example. As described before, you upload the 
-`FusedDecodeHist-static` file to S3, then deploy the Lambda function by:
+We use the fused histogram as an example. As described before, you can upload your own  
+`FusedDecodeHist-static` file to S3 and change the dowload path in the Lambda function, or you can use our default shared public static build file (no change needed). Then deploy the Lambda function by:
 ```bash
 cd lambdas/fused-decode-hist-lambda/
 ./collect.sh
@@ -90,7 +92,9 @@ You should be able to see the progress bars in your console!
 
 
 ### Split Model
-We will deploy two Lambda functions: decoder Lambda and MXNet Lambda. Then use S3 event to link these two Lambda functions. That is, upon uploading decoded frames from the decoder Lambdas, the S3 event will trigger the MXNet Lambdas.
+We will deploy two Lambda functions: decoder Lambda and MXNet Lambda. Then use S3 event to link these two Lambda functions. That is, upon uploading decoded frames from the decoder Lambdas, the S3 event will 
+
+the MXNet Lambdas.
 So you need to add the decoder uploading path as a resource of trigger to your MXNet Lambda. For more information, please refer to Lambda [document](http://docs.aws.amazon.com/lambda/latest/dg/with-s3.html).
 
 So first, deploy the decoder Lambda:
@@ -106,7 +110,7 @@ Then, deploy the MXNet Lambda:
 cd lambdas/mxnet-serverless/
 serverless deploy
 ```
-And remember to configure the S3 event trigger source.
+And remember to configure the **S3 event trigger source**.
 
 Finally, you can run the end-to-end script. Again, you need to modify this 
 end-to-end [file](end_to_end/end2end_mxnet.py) to your own S3 buckets. Run:
