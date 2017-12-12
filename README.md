@@ -1,4 +1,4 @@
-# THIS: Thousand Island Scanner
+# Thousand Island Scanner (THIS): Scaling Video Analysis on AWS Lambda
 
 [Scanner](https://github.com/scanner-research/scanner) proposes a high
 performance framework to perform visual data analysis on large datasets. We
