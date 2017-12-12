@@ -24,7 +24,7 @@ git submodule update --init
 Build and install Scanner in `/opt` directory, please refer to the installation guide
 of the Scanner [installation guide](https://github.com/scanner-research/scanner#install). 
 We also found the [docker file](https://github.com/scanner-research/scanner-docker) is a good guidance for installation.
-Note that you must use our [modified version](https://github.com/qinglan233/scanner/tree/273289965f1e173142def6e95b2c771a4d7b3cf7). Because in our end-to-end code, we will Scanner to ingest the video and prepare arguments for the decoder Lambdas, then our modified Scanner will *terminate* instead of proceeding to the normal path!
+Note that you must use our [modified version](https://github.com/qinglan233/scanner/tree/273289965f1e173142def6e95b2c771a4d7b3cf7). Because in our end-to-end code, we will use Scanner to ingest the video and prepare arguments for the decoder Lambdas, then our modified Scanner will *terminate* instead of proceeding to the normal path!
 
 Since we will use AWS Lambda that currently does not support GPU, 
 please install the *CPU version* of Scanner. 
