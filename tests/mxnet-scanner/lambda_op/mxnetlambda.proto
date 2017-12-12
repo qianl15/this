@@ -1,6 +1,0 @@
-syntax = "proto3";
-
-message MxnetLambdaArgs {
-  string server = 1;
-  string path = 2;
-}
