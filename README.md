@@ -1,4 +1,4 @@
-# Vass: Efficient visual analysis on serverless systems
+# THIS: Thousand Island Scanner
 
 [Scanner](https://github.com/scanner-research/scanner) proposes a high
 performance framework to perform visual data analysis on large datasets. We
