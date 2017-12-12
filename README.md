@@ -30,8 +30,9 @@ Since we will use AWS Lambda that currently does not support GPU,
 please install the *CPU version* of Scanner. 
 
 ### Build Decoder
+We share our static build [decoder](https://s3-us-west-2.amazonaws.com/mxnet-params/DecoderAutomataCmd-static) and [fused-histogram decoder](https://s3-us-west-2.amazonaws.com/mxnet-params/FusedDecodeHist-static) on a public S3 bucket, however, be careful to use them or compile your own static executable files! Use the following instructions if you want to build your own decode binary file from scratch.
 
-We provide two models: the fuse model and the split model. 
+We implemented two models: the fuse model and the split model. 
 
 If you wanted to run the split model, then you can build the standalone decoder:
 ```bash
@@ -56,7 +57,7 @@ make
 And again use Ermine to create the static binary file called 
 `FusedDecodeHist-static`.
 
-You need to upload the decoder binary to S3 because they are too large to fit into a Lambda function. You'll also have to change the decoder download path in Lambda functions. We share our static build [decoder](https://s3-us-west-2.amazonaws.com/mxnet-params/DecoderAutomataCmd-static) and [fused-histogram decoder](https://s3-us-west-2.amazonaws.com/mxnet-params/FusedDecodeHist-static) on a public S3 bucket, however, be careful to use them or compile your own static executable files!
+You need to upload the decoder binary to S3 because they are too large to fit into a Lambda function. You'll also have to change the decoder download path in Lambda functions. 
 
 ### Deploy Lambda Functions
 
