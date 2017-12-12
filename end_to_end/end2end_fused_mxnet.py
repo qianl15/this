@@ -53,7 +53,6 @@ def list_output_files(outputDir = './', fileExt = None):
     print('Please provide file extension: e.g., .jpg, .bin')
     exit()
   fileExt = '.{0}'.format(fileExt)
-  # print('output dir: {:s}, fileExt: {:s}'.format(outputDir, fileExt))
   outputFiles = [
     x for x in os.listdir(outputDir) if x.endswith(fileExt)
   ]
@@ -86,12 +85,10 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
 
     sema.acquire()
     try:
-      # print 'Start: %s [%dKB]' % (localFilePath, fileSize >> 10)
       with open(localFilePath, 'rb') as ifs:
         s3.put_object(Body=ifs, Bucket=bucketName,
           Key=uploadFileName,
           StorageClass='REDUCED_REDUNDANCY')
-      # print 'Done: %s' % localFilePath
     finally:
       sema.release()
       with countLock:
@@ -172,18 +169,6 @@ def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize):
     
 
   for startFrame in xrange(0, num_rows, WORK_PACKET_SIZE):
-    # # print("Invoke lambda for start frame {:d}".format(startFrame))
-    # result = invoke_lambda(UPLOAD_BUCKET, uploadPrefix, 
-    #                        startFrame, batch)
-    # if not result:
-    #   print('Fail to invoke for frame {:d}, retry.'.format(startFrame))
-    #   res = invoke_lambda(UPLOAD_BUCKET, uploadPrefix, 
-    #                       startFrame, batch)
-    #   if not res:
-    #     print('Frame {:d} still failed, exit'.format(startFrame))
-    #     exit()
-    # lambdaCount += 1
-    # bar.update(lambdaCount)
     result = pool.apply_async(invoke_lambda,
       args=(UPLOAD_BUCKET, uploadPrefix, startFrame, batch))
     results.append(result)
@@ -210,7 +195,7 @@ def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
   bar.start()
 
   fileCount = 0
-  time.sleep(5.0) # sleep for 10 seconds to wait for decoder finished!
+  time.sleep(5.0) # sleep for 5 seconds to wait for decoder finished!
   startTime = now()
   timeOut = startTime + TIMEOUT_SECONDS
   while fileCount < totalCount:
@@ -220,7 +205,6 @@ def wait_until_all_finished(startFrame, numRows, batch, videoPrefix):
       Prefix='{}/{}_{}_{}/'.format(DOWNLOAD_PREFIX, videoPrefix, 
                                    WORK_PACKET_SIZE, batch)))
     fileCount = currCount
-    # print('fileCount is: {:d}'.format(fileCount))
     bar.update(fileCount)
     if fileCount >= totalCount:
       break
@@ -261,11 +245,6 @@ def start_fused_mxnet_pipeline(test_video_path='videos/example.mp4',
     kernel_path = script_dir + '/fake_op.py'
     db.register_python_kernel('Fake', device, kernel_path, batch = 10)
 
-    # Choose Fake kernel can be faster, or you can choose PyMxnet
-    # db.register_op('PyMxnet', [('frame', ColumnType.Video)], ['class'])
-    # kernel_path = script_dir + '/pymxnet_op.py'
-    # db.register_python_kernel('PyMxnet', DeviceType.CPU, kernel_path, batch=10)
-
     start = now()
     [input_table], failed = db.ingest_videos([ 
         ('end2end_raw_fused', test_video_path)], force=True)
@@ -273,7 +252,6 @@ def start_fused_mxnet_pipeline(test_video_path='videos/example.mp4',
     delta = stop - start
     print('Time to ingest videos: {:.4f}s, fps: {:.4f}'.format(
       delta, input_table.num_rows() / delta))
-    # timelist += '"ingest-video" : %f,' % (delta)
     timelist["ingest-video"] = delta
 
     num_rows = input_table.num_rows()
@@ -288,7 +266,6 @@ def start_fused_mxnet_pipeline(test_video_path='videos/example.mp4',
     # Then we use our op just like in the other examples.
     # Choose Fake kernel can be faster, or you can choose PyMxnet 
     classes = db.ops.Fake(frame = frame, batch = batch)
-    # classes = db.ops.PyMxnet(frame = frame, batch = batch)
     output_op = db.ops.Output(columns=[classes])
     job = Job(
       op_args={
@@ -303,11 +280,7 @@ def start_fused_mxnet_pipeline(test_video_path='videos/example.mp4',
     stop = now()
     delta = stop - start
     print('Batch: {:d} End-to-end Python Kernel time: {:.4f}s, {:.1f} fps\n'.format(batch, delta, input_table.num_rows() / delta))
-    # timelist += '"scanner-execution" : %f,' % (delta)
     timelist["scanner-execution"] = delta
-
-    # output_table.profiler().write_trace(
-    #   out_dir + 'end2end_{:d}.trace'.format(batch))
 
     # If not load_to_disk, then it does not go to the next part
     if load_to_disk == False:
@@ -345,7 +318,6 @@ def start_fused_mxnet_pipeline(test_video_path='videos/example.mp4',
     stop = now()
     delta = stop - start
     print('Upload to S3 time: {:.4f} s'.format(delta))
-    # timelist += '"upload-s3" : %f,' % (delta)
     timelist["upload-s3"] = delta
 
     # Call Lambdas to decode, provide Bucket Name, File Prefix, Start Frame
@@ -356,12 +328,10 @@ def start_fused_mxnet_pipeline(test_video_path='videos/example.mp4',
     stop = now()
     delta = stop - start
     print('Triggered #{} Lambdas, time {:.4f} s'.format(lambdaCount, delta))
-    # timelist += '"invoke-lambda" : %f,' % (delta)
     timelist["invoke-lambda"] = delta
 
     # Wait until all output files appear
     fileCount = wait_until_all_finished(0, num_rows, batch, videoPrefix)
-    # assert(fileCount == len(xrange(0, num_rows, batch)))
     totalCount = len(xrange(0, num_rows, batch)) 
     print('Collected {:d} out of {:d} files, error rate: {:.4f}'.format(fileCount, totalCount, 
         (totalCount - fileCount) * 1.0 / totalCount))
@@ -438,8 +408,6 @@ if __name__ == '__main__':
   delta = stop - start
   print('Total pipeline time is: {:.4f} s'.format(delta))
 
-  # timelist += '"total-time" : %f' % (delta)
-  # timelist += "}"
   timelist["total-time"] = delta
   outString = "Timelist:" + json.dumps(timelist)
   print outString
