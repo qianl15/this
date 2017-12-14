@@ -28,6 +28,8 @@ import logging
 logging.getLogger('boto3').setLevel(logging.WARNING)
 logging.getLogger('botocore').setLevel(logging.WARNING)
 
+LAMBDA_NAME = "fused-decode-mxnet"
+
 WORK_PACKET_SIZE = 50  # how many frames to decode together
 BATCH_SIZE = 50 # how many frames to be evaluated together
 DEFAULT_KEEP_OUTPUT = False
@@ -36,7 +38,7 @@ MAX_PARALLEL_UPLOADS = 20
 UPLOAD_BUCKET = 'vass-video-samples2'
 UPLOAD_PREFIX = 'protobin-fused'
 
-DOWNLOAD_BUCKET = 'vass-video-samples2-results'
+DOWNLOAD_BUCKET = 'vass-video-output'
 DOWNLOAD_PREFIX = 'fused-decode-mxnet-output'
 
 DEFAULT_OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -128,7 +130,8 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
 
 # invoke lambdas and return the count
 lambdaCount = 0
-def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize):
+def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize,
+                          outputBucketName):
 
   lambdaTotalCount = len(xrange(0, num_rows, WORK_PACKET_SIZE))
   bar = progressbar.ProgressBar(maxval=lambdaTotalCount, \
@@ -143,17 +146,20 @@ def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize):
   countLock = Lock()
   results = []
 
-  def invoke_lambda(bucketName, filePrefix, startFrame, batchSize):
+  def invoke_lambda(bucketName, filePrefix, startFrame, batchSize, 
+    outputBucketName):
     sema.acquire()
     try:
       client = boto3.client('lambda')
       payload = '{{ \"inputBucket\": \"{:s}\", \
         \"inputPrefix\": \"{:s}\", \
         \"startFrame\": {:d}, \
-        \"outputBatchSize\": {:d}\
-        }}'.format(bucketName, filePrefix, startFrame, batchSize)
+        \"outputBatchSize\": {:d}, \
+        \"outputBucket\" : \"{:s}\" \
+        }}'.format(bucketName, filePrefix, startFrame, batchSize, 
+          outputBucketName)
 
-      response = client.invoke(FunctionName='fused-decode-mxnet',
+      response = client.invoke(FunctionName=LAMBDA_NAME,
                                InvocationType='Event',
                                Payload=str.encode(payload))
 
@@ -170,7 +176,7 @@ def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize):
 
   for startFrame in xrange(0, num_rows, WORK_PACKET_SIZE):
     result = pool.apply_async(invoke_lambda,
-      args=(UPLOAD_BUCKET, uploadPrefix, startFrame, batch))
+      args=(UPLOAD_BUCKET, uploadPrefix, startFrame, batch, outputBucketName))
     results.append(result)
 
   for result in results:
@@ -324,7 +330,7 @@ def start_fused_mxnet_pipeline(test_video_path='videos/example.mp4',
     # Then decoder Lambdas will write to S3, which will trigger MXNet Lambdas
     start = now()
     lambdaCount = invoke_decoder_lambda(UPLOAD_BUCKET, uploadPrefix, num_rows, 
-      batch)
+      batch, DOWNLOAD_BUCKET)
     stop = now()
     delta = stop - start
     print('Triggered #{} Lambdas, time {:.4f} s'.format(lambdaCount, delta))
