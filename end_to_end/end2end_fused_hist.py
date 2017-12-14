@@ -28,6 +28,8 @@ import logging
 logging.getLogger('boto3').setLevel(logging.WARNING)
 logging.getLogger('botocore').setLevel(logging.WARNING)
 
+LAMBDA_NAME = "fused-decode-hist"
+
 WORK_PACKET_SIZE = 50  # how many frames to decode together
 BATCH_SIZE = 50 # how many frames to be evaluated together
 DEFAULT_KEEP_OUTPUT = False
@@ -157,7 +159,7 @@ def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize,
         }}'.format(bucketName, filePrefix, startFrame, batchSize, 
           outputBucketName)
 
-      response = client.invoke(FunctionName='fused-decode-hist',
+      response = client.invoke(FunctionName=LAMBDA_NAME,
                                InvocationType='Event',
                                Payload=str.encode(payload))
 
