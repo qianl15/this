@@ -80,6 +80,23 @@ cd lambdas/fused-decode-hist-lambda/
 
 Create a new Lambda function called `fused-decode-hist`, upload the generated `.zip` file to your Lambda console and create a new Lambda function.
 
+Or you can use [AWS CLI](https://aws.amazon.com/cli/) to deploy Lambda functions:
+```bash
+aws lambda create-function --function-name <function name> \
+  --zip-file fileb://<local zip file> --runtime python2.7 \
+  --region <us-west-2 or others> --role <role arn> \
+  --handler <lambda file.function name> --memory-size 3008 --timeout 300
+```
+
+An example here:
+```bash
+aws lambda create-function --function-name fused-decode-hist \
+  --zip-file fileb://fused_decode_hist.zip --runtime python2.7 \
+  --region us-west-2 --role arn:aws:iam:xxxxxxx<your own num>:role/<rolename> \
+  --handler lambda.handler --memory-size 3008 --timeout 300
+```
+
+
 You may need to modify the end-to-end [file](end_to_end/end2end_fused_hist.py) to configure `UPLOAD_BUCKET` and `DOWNLOAD_BUCKET` to your own buckets (the two buckets you created in the previous step).
 
 Then run:
