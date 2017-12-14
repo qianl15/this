@@ -154,6 +154,10 @@ def handler(event, context):
     outputBucket = inputBucket + '-results'
   else:
     print('Warning: using default input bucket: {:s}'.format(inputBucket))
+  if 'outputBucket' in event:
+    outputBucket = event['outputBucket']
+  else:
+    print('Warning: using default output bucket: {:s}'.format(outputBucket))
   if 'inputPrefix' in event:
     inputPrefix = event['inputPrefix']
   else:
