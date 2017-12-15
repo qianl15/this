@@ -131,7 +131,7 @@ def upload_output_to_s3(bucketName, filePrefix, fileExt):
 # invoke lambdas and return the count
 lambdaCount = 0
 def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize,
-                          outputBucketName):
+                          outputBucketName, outputPrefix):
 
   lambdaTotalCount = len(xrange(0, num_rows, WORK_PACKET_SIZE))
   bar = progressbar.ProgressBar(maxval=lambdaTotalCount, \
@@ -147,7 +147,7 @@ def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize,
   results = []
 
   def invoke_lambda(bucketName, filePrefix, startFrame, batchSize,
-                    outputBucketName):
+                    outputBucketName, outputPrefix):
     sema.acquire()
     try:
       client = boto3.client('lambda')
@@ -155,9 +155,10 @@ def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize,
         \"inputPrefix\": \"{:s}\", \
         \"startFrame\": {:d}, \
         \"outputBatchSize\": {:d},\
-        \"outputBucket\" : \"{:s}\" \
+        \"outputBucket\" : \"{:s}\", \
+        \"outputPrefix\" : \"{:s}\" \
         }}'.format(bucketName, filePrefix, startFrame, batchSize, 
-          outputBucketName)
+          outputBucketName, outputPrefix)
 
       response = client.invoke(FunctionName=LAMBDA_NAME,
                                InvocationType='Event',
@@ -176,7 +177,8 @@ def invoke_decoder_lambda(bucketName, uploadPrefix, num_rows, batchSize,
 
   for startFrame in xrange(0, num_rows, WORK_PACKET_SIZE):
     result = pool.apply_async(invoke_lambda,
-      args=(UPLOAD_BUCKET, uploadPrefix, startFrame, batch, outputBucketName))
+      args=(UPLOAD_BUCKET, uploadPrefix, startFrame, batch, outputBucketName,
+            outputPrefix))
     results.append(result)
 
   for result in results:
@@ -331,7 +333,7 @@ def start_fused_hist_pipeline(test_video_path='videos/example.mp4',
     # Then decoder Lambdas will write to S3, which will trigger Lambdas
     start = now()
     lambdaCount = invoke_decoder_lambda(UPLOAD_BUCKET, uploadPrefix, num_rows, 
-      batch, DOWNLOAD_BUCKET)
+      batch, DOWNLOAD_BUCKET, DOWNLOAD_PREFIX)
     stop = now()
     delta = stop - start
     print('Triggered #{} Lambdas, time {:.4f} s'.format(lambdaCount, delta))
