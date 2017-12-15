@@ -60,7 +60,7 @@ def download_video1(num = 1, fm_num = 1):
       elif num == 4:
         ydl.download(["https://www.youtube.com/watch?v=oLXChyNpKbU"])
       else:
-        print('invalid option for video: choose 1 / 2 / 3')
+        print('invalid option for video: choose [1 ~ 4]')
         exit()
   return VID_PATH
 
