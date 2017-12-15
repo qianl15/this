@@ -360,7 +360,7 @@ def start_fuse_pipeline(videoPath, args):
   ###################################################
 
   ######################
-  # Upload all .proto files
+  # 1.0 Upload all .proto files
   ######################
   uploadBucket = args.uploadBucket
   start = now()
@@ -368,7 +368,7 @@ def start_fuse_pipeline(videoPath, args):
     uploadBucket, uploadPrefix, PROTO_EXT)
 
   ######################
-  # Upload all .bin files
+  # 1.1 Upload all .bin files
   ######################
   fileCount, totalSize = upload_output_to_s3(
     uploadBucket, uploadPrefix, BIN_EXT)
@@ -378,7 +378,7 @@ def start_fuse_pipeline(videoPath, args):
   timelist["upload-s3"] = delta
 
   ################################################
-  # Call Lambdas to decode + evaluate, 
+  # 1.2 Call Lambdas to decode + evaluate, 
   # provide Bucket Name, File Prefix, numFrames, batch
   ################################################
   start = now()
@@ -389,7 +389,7 @@ def start_fuse_pipeline(videoPath, args):
   timelist["invoke-lambda"] = delta
 
   ################################################
-  # Wait until all output files appear
+  # 1.3 Wait until all output files appear
   ################################################
   fileCount = wait_until_all_finished(0, numFrames, videoPrefix, args)
   totalCount = len(xrange(0, numFrames, batch)) 

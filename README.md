@@ -94,6 +94,7 @@ python end2end_fuse.py --batch=50 --function=<lambda name> \
   --upload-bucket=<input bucket> \
   --download-bucket=<output bucket> \
 ```
+Run `python end2end_fuse.py -h` to get information about more optional arguments.
 
 We use the fused histogram as an example. As described before, you can upload your own  
 `FusedDecodeHist-static` file to S3 and change the dowload path in the Lambda function, or you can use our default shared public static build file (no change needed). Then deploy the Lambda function by:
