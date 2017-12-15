@@ -114,6 +114,7 @@ python end2end_fuse.py --batch=50 --function=fused-decode-hist \
 
 You should be able to see the progress bars in your console. You can DIY your own Lambda functions and just change the `--function` parameter to use new features!
 
+If you want to deploy fused-mxnet Lambda functions, be aware of tricky dependencies. So we provide our [pre-compiled .zip file on S3](https://s3-us-west-2.amazonaws.com/mxnet-params/fused_decode_mxnet.zip). You can use this file to create new fused-mxnet Lambda function.
 
 ### Split Model
 We will deploy two Lambda functions: decoder Lambda and MXNet Lambda. Then use S3 event to link these two Lambda functions. That is, upon uploading decoded frames from the decoder Lambdas, the S3 event will 
