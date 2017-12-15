@@ -96,6 +96,7 @@ python end2end_fuse.py --batch=50 --function=<lambda name> \
 ```
 Run `python end2end_fuse.py -h` to get information about more optional arguments.
 
+#### Fused-histogram
 We use the fused histogram as an example. As described before, you can upload your own  
 `FusedDecodeHist-static` file to S3 and change the dowload path in the Lambda function, or you can use our default shared public static build file (no change needed). Then deploy the Lambda function by:
 ```bash
@@ -114,7 +115,13 @@ python end2end_fuse.py --batch=50 --function=fused-decode-hist \
 
 You should be able to see the progress bars in your console. You can DIY your own Lambda functions and just change the `--function` parameter to use new features!
 
+#### Fused-mxnet
 If you want to deploy fused-mxnet Lambda functions, be aware of tricky dependencies. So we provide our [pre-compiled .zip file on S3](https://s3-us-west-2.amazonaws.com/mxnet-params/fused_decode_mxnet.zip). You can use this file to create new fused-mxnet Lambda function.
+
+Or you can use [Serverless](https://serverless.com/), since we provide [serverless.yml](lambdas/fused-decode-mxnet-lambda/serverless.yml) and other dependece files. Make sure you understand what is going on in `serverless.yml` file, including the region and function name. Modify as you want! With serverless framework, you can easily deploy Lambda function by:
+```bash
+serverless deploy
+```
 
 ### Split Model
 We will deploy two Lambda functions: decoder Lambda and MXNet Lambda. Then use S3 event to link these two Lambda functions. That is, upon uploading decoded frames from the decoder Lambdas, the S3 event will 
