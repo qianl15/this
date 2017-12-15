@@ -66,21 +66,7 @@ We also use [Serverless](https://serverless.com/) to automatically create the de
 
 You need to create two buckets on S3: one for decoder arguments and intermediate data, another for storing the output results.
 
-
-## Running THIS
-As we described, we implement both the fuse and split models. Here are two examples to use them respectively.
-
-### Fuse Model
-We use the fused histogram as an example. As described before, you can upload your own  
-`FusedDecodeHist-static` file to S3 and change the dowload path in the Lambda function, or you can use our default shared public static build file (no change needed). Then deploy the Lambda function by:
-```bash
-cd lambdas/fused-decode-hist-lambda/
-./collect.sh
-```
-
-Create a new Lambda function called `fused-decode-hist`, upload the generated `.zip` file to your Lambda console and create a new Lambda function.
-
-Or you can use [AWS CLI](https://aws.amazon.com/cli/) to deploy Lambda functions:
+You can use online console or [AWS CLI](https://aws.amazon.com/cli/) to deploy Lambda functions:
 ```bash
 aws lambda create-function --function-name <function name> \
   --zip-file fileb://<local zip file> --runtime python2.7 \
@@ -97,15 +83,35 @@ aws lambda create-function --function-name fused-decode-hist \
 ```
 
 
-You may need to modify the end-to-end [file](end_to_end/end2end_fused_hist.py) to configure `UPLOAD_BUCKET` and `DOWNLOAD_BUCKET` to your own buckets (the two buckets you created in the previous step).
+## Running THIS
+As we described, we implement both the fuse and split models. Here are two examples to use them respectively.
+
+### Fuse Model
+We have one entry [file](end_to_end/end2end_fuse.py) for fuse model that supports all different evaluation kernels. To use this file, type the following command:
+```bash
+cd end_to_end/
+python end2end_fuse.py --batch=50 --function=<lambda name> \
+  --upload-bucket=<input bucket> \
+  --download-bucket=<output bucket> \
+```
+
+We use the fused histogram as an example. As described before, you can upload your own  
+`FusedDecodeHist-static` file to S3 and change the dowload path in the Lambda function, or you can use our default shared public static build file (no change needed). Then deploy the Lambda function by:
+```bash
+cd lambdas/fused-decode-hist-lambda/
+./collect.sh
+```
+
+Create a new Lambda function called `fused-decode-hist` using the generated `.zip` file.
 
 Then run:
 ```bash
-cd end_to_end/
-python2 end2end_fused_hist.py 3 1 ./ 50 1
+python end2end_fuse.py --batch=50 --function=fused-decode-hist \
+  --upload-bucket=<input bucket> \
+  --download-bucket=<output bucket> \
 ```
 
-You should be able to see the progress bars in your console!
+You should be able to see the progress bars in your console. You can DIY your own Lambda functions and just change the `--function` parameter to use new features!
 
 
 ### Split Model

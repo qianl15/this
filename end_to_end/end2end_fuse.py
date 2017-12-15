@@ -10,7 +10,9 @@ from scannerpy import Database, Job, ColumnType, DeviceType, BulkJob
 from scannerpy.stdlib import parsers
 import sys
 import os.path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tests')
+import os
+os.chdir(os.path.dirname(os.path.abspath(__file__))) # execution path!
+sys.path.append('../tests')
 import util
 from timeit import default_timer as now
 import time
@@ -34,7 +36,7 @@ LAMBDA_NAME = "fused-decode-hist"
 DEFAULT_KEEP_OUTPUT = False
 MAX_PARALLEL_UPLOADS = 20
 
-DEFAULT_OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_OUTPUT_DIR = './'
 PROTO_EXT = 'proto'
 BIN_EXT = 'bin'
 OUT_EXT = 'out'
@@ -47,12 +49,15 @@ def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--video', '-v', type=int, required=False,
             dest='video',
+            default=1,
             help='Which video, choose from 1~4')
   parser.add_argument('--resolution', '-r', type=int, required=False,
             dest='resolution',
+            default=1,
             help='Which resolution, choose from 1~5 (360p - 4K)')
   parser.add_argument('--outdir', '-o', type=str, required=False,
             dest='outDir',
+            default=DEFAULT_OUTPUT_DIR,
             help='Directory to save log files')
   parser.add_argument('--batch', '-b', type=int, required=True,
             dest='batch',
@@ -63,22 +68,25 @@ def get_args():
   parser.add_argument('--upload-bucket', '-ub', type=str, required=True,
             dest='uploadBucket',
             help='Intermediate files upload bucket')
-  parser.add_argument('--upload-prefix', '-up', type=str, required=True,
+  parser.add_argument('--upload-prefix', '-up', type=str, required=False,
             dest='uploadPrefix',
+            default='fused-protobin',
             help='Intermediate files upload prefix')
   parser.add_argument('--download-bucket', '-db', type=str, required=True,
             dest='downloadBucket',
             help='Output files bucket')
-  parser.add_argument('--download-prefix', '-dp', type=str, required=True,
+  parser.add_argument('--download-prefix', '-dp', type=str, required=False,
             dest='downloadPrefix',
+            default='fused-output',
             help='Output files prefix')
   parser.add_argument('--timeout', '-t', type=int, required=False,
             dest='timeout',
+            default=TIMEOUT_SECONDS,
             help='Time out in seconds (default 300s)')
 
   return parser.parse_args()
 
-def list_output_files(outputDir = './', fileExt = None):
+def list_output_files(outputDir = DEFAULT_OUTPUT_DIR, fileExt = None):
   if fileExt == None:
     print('Please provide file extension: e.g., .jpg, .bin')
     exit()
@@ -285,7 +293,7 @@ def start_fuse_pipeline(videoPath, args):
     device = DeviceType.CPU
     print('only has CPUs!')
 
-  scriptDir = os.path.dirname(os.path.abspath(__file__))
+  scriptDir = './'
   numFrames = 0
 
   batch = args.batch
@@ -303,7 +311,7 @@ def start_fuse_pipeline(videoPath, args):
   with Database() as db:
     # Register the fake kernel
     db.register_op('Fake', [('frame', ColumnType.Video)], ['class'])
-    kernelPath = scriptDir + '/fake_op.py'
+    kernelPath = os.path.join(scriptDir, 'fake_op.py')
     db.register_python_kernel('Fake', device, kernelPath, batch = 10)
 
     ####################
@@ -391,17 +399,9 @@ def start_fuse_pipeline(videoPath, args):
 def main(args):
   print('Argument list: {}'.format(args))
 
-  videoNum = 1 # video num
-  videoRes = 1 # resolution
-  outDir = './' # logs directory
-
-  if args.video:
-    videoNum = args.video
-  if args.resolution:
-    videoRes = args.resolution
-  if args.outDir:
-    outDir = args.outDir
-
+  videoNum = args.video # video num
+  videoRes = args.resolution # resolution
+  outDir = args.outDir # logs directory
   batch = args.batch
   outputBucket = args.downloadBucket
   outputPrefix = args.downloadPrefix
